@@ -1,0 +1,7 @@
+[project]
+name = "quoridor-llm"
+version = "0.1.0"
+description = "LLMs competing with each other in matches of Quoridor"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
