@@ -1,0 +1,3 @@
+# Game information
+BOARD_SIZE = 9
+PLAYER_WALL_BALANCE_START = 10
