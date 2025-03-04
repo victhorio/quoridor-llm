@@ -3,17 +3,22 @@ Implementation of the actual quoridor game mechanics.
 """
 
 from enum import Enum
-from typing import NamedTuple
+from dataclasses import dataclass
 
 from . import constants
 
 
-class Pos(NamedTuple):
+@dataclass(frozen=True)
+class Pos:
     row: int
     col: int
 
+    def __add__(self, other: "Pos") -> "Pos":
+        return Pos(self.row + other.row, self.col + other.col)
 
-class Player(NamedTuple):
+
+@dataclass
+class Player:
     pos: Pos
     wall_balance: int
 
@@ -24,7 +29,7 @@ class Dir(Enum):
     LEFT = 2
     RIGHT = 3
 
-    def as_delta(self) -> tuple[int, int]:
+    def as_pos_delta(self) -> Pos:
         if self == Dir.UP:
             return Pos(1, 0)
         if self == Dir.DOWN:
@@ -47,11 +52,11 @@ class Edges:
         self.rows = rows
         self.cols = cols
 
-    def __call__(self, row: int, col: int) -> bool:
-        return self._cells[row * self.cols + col]
+    def __call__(self, pos: Pos) -> bool:
+        return self._cells[pos.row * self.cols + pos.col]
 
-    def set(self, row: int, col: int) -> None:
-        idx = row * self.cols + col
+    def set(self, pos: Pos) -> None:
+        idx = pos.row * self.cols + pos.col
         assert not self._cells[idx], "Placing a wall on top of another wall"
         self._cells[idx] = True
 
@@ -73,11 +78,11 @@ class GameState:
     players: tuple[Player, Player]
 
     def __init__(self, edges_up: Edges, edges_right: Edges, player_a: Player, player_b: Player):
-        assert edges_up.cols == constants.BOARD_SIZE
-        assert edges_up.rows == constants.BOARD_SIZE - 1
+        assert edges_up.cols == constants.BOARD_GRID_SIZE
+        assert edges_up.rows == constants.BOARD_GRID_SIZE - 1
 
-        assert edges_right.cols == constants.BOARD_SIZE - 1
-        assert edges_right.rows == constants.BOARD_SIZE
+        assert edges_right.cols == constants.BOARD_GRID_SIZE - 1
+        assert edges_right.rows == constants.BOARD_GRID_SIZE
 
         self.edges_up = edges_up
         self.edges_right = edges_right
@@ -85,77 +90,73 @@ class GameState:
 
     @classmethod
     def new_game(cls):
-        player_start_col = int(constants.BOARD_SIZE / 2)
+        player_start_col = int(constants.BOARD_GRID_SIZE / 2)
         return cls(
-            edges_up=Edges(constants.BOARD_SIZE - 1, constants.BOARD_SIZE),
-            edges_right=Edges(constants.BOARD_SIZE, constants.BOARD_SIZE - 1),
-            player_a=Player(Pos(0, player_start_col), constants.PLAYER_WALL_BALANCE_START),
-            player_b=Player(Pos(constants.BOARD_SIZE - 1, player_start_col), constants.PLAYER_WALL_BALANCE_START),
+            edges_up=Edges(constants.BOARD_GRID_SIZE - 1, constants.BOARD_GRID_SIZE),
+            edges_right=Edges(constants.BOARD_GRID_SIZE, constants.BOARD_GRID_SIZE - 1),
+            player_a=Player(Pos(0, player_start_col), constants.PLAYER_WALL_START_COUNT),
+            player_b=Player(Pos(constants.BOARD_GRID_SIZE - 1, player_start_col), constants.PLAYER_WALL_START_COUNT),
         )
 
-    def cell_get(self, row: int, col: int) -> str:
-        for i, player in enumerate(self.players):
-            if player.pos == (row, col):
-                return chr(ord("A") + i)
-        return ""
-
-    def wall_get(self, row: int, col: int, direction: Dir) -> bool:
+    def wall_check(self, pos: Pos, direction: Dir) -> bool:
         if direction in (Dir.UP, Dir.DOWN):
-            # This is a `row` wall operation. If we're referring to the bottom edge it's just the
-            # top edge of the bottom cell.
+            # this is a vertical operation, so we need to check `edges_up`
+            # if the direction is down, we simply check the `up` edge of the position below
             if direction == Dir.DOWN:
-                row -= 1
-            return self.edges_up(row, col)
+                pos += Dir.DOWN.as_pos_delta()
+            return self.edges_up(pos)
 
         if direction in (Dir.LEFT, Dir.RIGHT):
-            # Analogous.
+            # analogous, but for horizontal
             if direction == Dir.LEFT:
-                col -= 1
-            return self.edges_right(row, col)
+                pos += Dir.LEFT.as_pos_delta()
+            return self.edges_right(pos)
 
-    def wall_place(self, row: int, col: int, direction: Dir) -> None:
+        assert False, "unreachable code"
+
+    def wall_place(self, pos: Pos, direction: Dir) -> None:
+        # implementation is analogous to wall_get above
         if direction in (Dir.UP, Dir.DOWN):
-            # This is a `row` wall operation. If we're referring to the bottom edge it's just the
-            # top edge of the bottom cell.
             if direction == Dir.DOWN:
-                row -= 1
-            self.edges_up.set(row, col)
-        elif direction in (Dir.LEFT, Dir.RIGHT):
-            # Analogous.
-            if direction == Dir.LEFT:
-                col -= 1
-            self.edges_right.set(row, col)
+                pos += Dir.DOWN.as_pos_delta()
+            self.edges_up.set(pos)
+            return
 
-    def move(self, player: str, direction: Dir) -> tuple[bool, str]:
-        player_idx = ord(player) - ord("A")
-        player_pos_curr = self.players[player_idx].pos
-        direction_delta = direction.as_delta()
-        player_pos_new = Pos(player_pos_curr.row + direction_delta.row, player_pos_curr.col + direction_delta.col)
+        if direction in (Dir.LEFT, Dir.RIGHT):
+            if direction == Dir.LEFT:
+                pos += Dir.LEFT.as_pos_delta()
+            self.edges_right.set(pos)
+            return
+
+        assert False, "unreachable code"
+
+    def move(self, player_idx: int, direction: Dir) -> tuple[bool, str]:
+        player_pos_cur = self.players[player_idx].pos
+        player_pos_new = player_pos_cur + direction.as_pos_delta()
 
         # Check if the new position is within the board boundaries
-        if not (0 <= player_pos_new.row < constants.BOARD_SIZE and 0 <= player_pos_new.col < constants.BOARD_SIZE):
+        if not (
+            0 <= player_pos_new.row < constants.BOARD_GRID_SIZE and 0 <= player_pos_new.col < constants.BOARD_GRID_SIZE
+        ):
             return False, "Cannot move outside the board boundaries"
 
         # Check if there's a wall blocking the move
-        if self.wall_get(player_pos_curr.row, player_pos_curr.col, direction):
+        if self.wall_check(player_pos_cur, direction):
             return False, "Cannot move through a wall"
 
         # Check player collision
-        assert len(self.players) == 2
+        assert len(self.players) == 2, "Invalid Assumption: unexpected number of players"
         enemy_idx = 1 - player_idx  # (player_idx == 1) ? 0 : 1
         enemy_pos = self.players[enemy_idx].pos
         if player_pos_new == enemy_pos:
             return False, "Tried to move to a cell already occupied by other player"
 
         # Update the player's position
-        self.players = (
-            Player(player_pos_new, self.players[0].wall_balance) if player_idx == 0 else self.players[0],
-            Player(player_pos_new, self.players[1].wall_balance) if player_idx == 1 else self.players[1],
-        )
+        self.players[player_idx].pos = player_pos_new
 
         # Check for win condition
         # Player A wins by reaching the top row (row 8)
-        if player_idx == 0 and player_pos_new.row == constants.BOARD_SIZE - 1:
+        if player_idx == 0 and player_pos_new.row == constants.BOARD_GRID_SIZE - 1:
             return False, ""
         # Player B wins by reaching the bottom row (row 0)
         elif player_idx == 1 and player_pos_new.row == 0:
