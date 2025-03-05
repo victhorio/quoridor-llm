@@ -12,11 +12,21 @@ class ParamInfo:
     type: str
     desc: str
     required: bool
+    enum: list[str] | None = None
+
+    def spec_dict(self) -> dict:
+        spec = {
+            "type": self.type,
+            "description": self.desc,
+        }
+        if self.enum:
+            spec["enum"] = self.enum
+        return spec
 
 
 def client_create() -> AsyncOpenAI:
     return AsyncOpenAI(
-        api_key=os.get("OPENAI_API_KEY"),
+        api_key=os.getenv("OPENAI_API_KEY"),
     )
 
 
@@ -33,13 +43,7 @@ def tool_spec_create(name: str, desc: str, params: list[ParamInfo]) -> dict:
             "description": desc,
             "parameters": {
                 "type": "object",
-                "properties": {
-                    p.name: {
-                        "type": p.type,
-                        "description": p.desc,
-                    }
-                    for p in params
-                },
+                "properties": {p.name: p.spec_dict() for p in params},
                 "required": [p.name for p in params if p.required],
             },
         },
