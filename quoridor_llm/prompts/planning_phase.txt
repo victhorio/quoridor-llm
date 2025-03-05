@@ -1,0 +1,23 @@
+## Planning Phase - Turn {turn_number}
+
+You are Player {player_number} in a game of Quoridor.
+Your action has been executed. Here is the updated game state:
+
+<board>
+{board_representation}
+</board>
+
+### Player Positions:
+- Player 0: {player0_pos}
+- Player 1: {player1_pos}
+
+### Wall Count:
+- Player 0: {player0_walls} walls remaining
+- Player 1: {player1_walls} walls remaining
+
+Create a plan for your next turn. Include your strategy, observations about the board, and any
+information you want to remember for future turns. This plan will be shown to you at the beginning
+of your next turn.
+
+Your full response to this message will be passed as a plan the next turn, so avoid filler sentences
+that may confuse you in the future!

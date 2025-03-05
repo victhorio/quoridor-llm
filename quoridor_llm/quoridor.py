@@ -2,10 +2,10 @@
 Implementation of the actual quoridor game mechanics.
 """
 
-from enum import Enum
-from dataclasses import dataclass
-from collections import deque
 import copy
+from collections import deque
+from dataclasses import dataclass
+from enum import Enum
 
 from . import constants
 
@@ -259,8 +259,8 @@ class GameState:
         # valid move, no win
         return True, ""
 
-    def print(self):
-        # we print the board with the following format:
+    def as_str(self) -> str:
+        # we return the board with the following format:
         # - each row either contains the horizontal edges or the actual cell contents
         # - the drawing is indented by 4 spaces, with the cell contents rows including its index
         #   in this indentation
@@ -298,6 +298,10 @@ class GameState:
         # shorthand for the cell element of a given player
         player_map = {player.pos: f" {idx} " for idx, player in enumerate(self.players)}
 
+        def save_row(row, result=list()):
+            result.append(row)
+            return result
+
         # we start from the top row, which is the highest index, and go down from there
         for row in range(BOARD_SIZE)[::-1]:
             # each iteration we print the top edge of that row followed by the cells, the bottom
@@ -305,14 +309,14 @@ class GameState:
 
             # in the first (topmost) row we don't have actual edges, so we print an empty edge
             if row == BOARD_SIZE - 1:
-                print(EMPTY_ROW_STR)
+                save_row(EMPTY_ROW_STR)
             else:
                 row_str = "    "  # 4 character aligment
                 for col in range(BOARD_SIZE):
                     row_str += "+"
                     row_str += "---" if self.edges_up(Pos(row, col)) else "   "
                 row_str += "+"
-                print(row_str)
+                save_row(row_str)
 
             # print the walls and its cells
             cell_row_str = f"{row:2d}   "  # 4 character indentation (2 used for index) plus a space indicating the empty leftmost edge
@@ -320,12 +324,13 @@ class GameState:
                 pos = Pos(row, col)
                 cell_row_str += player_map.get(pos, "   ")
                 cell_row_str += " " if col == BOARD_SIZE - 1 or not self.edges_right(pos) else "|"
-            print(cell_row_str)
+            save_row(cell_row_str)
 
         # bottom edge
-        print(EMPTY_ROW_STR)
+        save_row(EMPTY_ROW_STR)
         # row coordinates
         row_coord_str = "    "
         for col in range(BOARD_SIZE):
             row_coord_str += f" {col:2d} "
-        print(row_coord_str)
+
+        return "\n".join(save_row(row_coord_str))

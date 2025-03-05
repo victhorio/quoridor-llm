@@ -10,7 +10,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "isort>=6.0.1",
     "pytest>=8.3.4",
+    "setuptools>=75.8.2",
 ]
 
 [tool.ruff]
@@ -19,3 +21,6 @@ line-length = 120
 [tool.pytest.ini_options]
 testpaths = ["quoridor_llm"]
 python_files = "*_test.py"
+
+[tool.setuptools.package-data]
+packagename = ["prompts/*.txt"]

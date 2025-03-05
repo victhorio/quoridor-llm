@@ -1,0 +1,25 @@
+## Action Phase - Turn {turn_number}
+
+You are Player {player_number} in a game of Quoridor.
+Your goal is to reach {target_row}.
+
+### Current Game State:
+<board>
+{board_representation}
+</board>
+
+### Player Positions:
+- Player 0: {player0_pos}
+- Player 1: {player1_pos}
+
+### Wall Count:
+- Player 0: {player0_walls} walls remaining
+- Player 1: {player1_walls} walls remaining
+
+<previous_plan>
+{previous_plan}
+</previous_plan>
+
+Choose ONE action:
+1. Move your pawn using
+2. Place a wall using

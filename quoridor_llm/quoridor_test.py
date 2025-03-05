@@ -1,7 +1,7 @@
 import pytest
 
 from . import constants
-from .quoridor import GameState, Pos, Dir
+from .quoridor import Dir, GameState, Pos
 
 
 class TestQuoridorGame:
