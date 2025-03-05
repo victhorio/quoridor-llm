@@ -4,14 +4,18 @@ version = "0.1.0"
 description = "LLMs competing with each other in matches of Quoridor"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "openai>=1.65.3",
+]
 
-[project.optional-dependencies]
-dev = ["pytest>=7.4.0"]
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+]
 
 [tool.ruff]
 line-length = 120
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = "test_*.py"
+testpaths = ["quoridor_llm"]
+python_files = "*_test.py"
