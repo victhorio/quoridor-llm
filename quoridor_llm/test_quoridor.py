@@ -175,6 +175,11 @@ class TestQuoridorGame:
         with pytest.raises(AssertionError):
             game.wall_place(Pos(1, 3), Dir.UP)
 
+        # test near the edges don't throw exceptions
+        game = GameState.new_game()
+        game.wall_place(Pos(constants.BOARD_GRID_SIZE - 2, 0), Dir.UP)
+        game.wall_place(Pos(0, constants.BOARD_GRID_SIZE - 2), Dir.RIGHT)
+
     def test_wall_placement_check(self):
         """Test the wall_placement_check function for detecting blocking walls."""
         game = GameState.new_game()
@@ -238,3 +243,18 @@ class TestQuoridorGame:
 
         assert game._player_can_reach_goal(0)
         assert not game._player_can_reach_goal(1)
+
+    def test_invalid_wall_indexes_are_caught(self):
+        game = GameState.new_game()
+
+        with pytest.raises(IndexError):
+            game.wall_check(game.players[0].pos, Dir.DOWN)
+
+        with pytest.raises(IndexError):
+            game.wall_check(game.players[1].pos, Dir.UP)
+
+        with pytest.raises(IndexError):
+            game.wall_place(Pos(0, 0), Dir.LEFT)
+
+        with pytest.raises(IndexError):
+            game.wall_place(Pos(0, constants.BOARD_GRID_SIZE - 1), Dir.RIGHT)

@@ -100,8 +100,7 @@ class GameState:
             player_b=Player(Pos(constants.BOARD_GRID_SIZE - 1, player_start_col), constants.PLAYER_WALL_START_COUNT),
         )
 
-    @staticmethod
-    def _wall_canonical_index(pos: Pos, direction: Dir) -> tuple[Pos, Dir]:
+    def _wall_canonical_index(self, pos: Pos, direction: Dir) -> tuple[Pos, Dir]:
         # if the direction is not `up` or `right`, we change the reference position `pos`
         # so that we refer to the same wall, but now with an `up` or `right` direction
         if direction in (Dir.UP, Dir.RIGHT):
@@ -113,11 +112,18 @@ class GameState:
         else:
             assert False, "unreachable code"
 
-        # TODO: let's check for OOB before returning
+        # since wall operations always involve this, let's check for invalid access to walls
+        if not self._is_position_inbounds(pos_canonical):
+            raise IndexError("wall operation requires an invalid canonical position")
+        if direction_canonical == Dir.UP and not 0 <= pos_canonical.row < constants.BOARD_GRID_SIZE - 1:
+            raise IndexError(f"wall operation on top edge of row index {pos_canonical.row}")
+        elif direction_canonical == Dir.RIGHT and not 0 <= pos_canonical.col < constants.BOARD_GRID_SIZE - 1:
+            raise IndexError(f"wall operation on right edge of col index {pos_canonical.col}")
+
         return pos_canonical, direction_canonical
 
     def wall_check(self, pos: Pos, direction: Dir) -> bool:
-        pos, direction = GameState._wall_canonical_index(pos, direction)
+        pos, direction = self._wall_canonical_index(pos, direction)
 
         if direction == Dir.UP:
             return self.edges_up(pos)
@@ -127,7 +133,7 @@ class GameState:
         assert False, "unreachable code"
 
     def wall_place(self, pos: Pos, direction: Dir) -> None:
-        pos, direction = GameState._wall_canonical_index(pos, direction)
+        pos, direction = self._wall_canonical_index(pos, direction)
 
         if direction == Dir.UP:
             self.edges_up.set(pos)
@@ -143,7 +149,7 @@ class GameState:
         Returns whether a `wall_place(pos, direction)` would completely block the path for either
         of the players reaching the opposite edge.
         """
-        pos_canonical, direction_canonical = GameState._wall_canonical_index(pos, direction)
+        pos_canonical, direction_canonical = self._wall_canonical_index(pos, direction)
 
         # Check if wall placement is valid (not on top of another wall)
         if direction_canonical == Dir.UP and self.edges_up(pos_canonical):
