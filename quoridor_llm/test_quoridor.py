@@ -174,3 +174,67 @@ class TestQuoridorGame:
 
         with pytest.raises(AssertionError):
             game.wall_place(Pos(1, 3), Dir.UP)
+
+    def test_wall_placement_check(self):
+        """Test the wall_placement_check function for detecting blocking walls."""
+        game = GameState.new_game()
+        start_col = game.players[0].pos.col
+
+        # Case 1: Wall that doesn't block any player's path
+        # This wall doesn't block either player from reaching their goal
+        assert not game.wall_placement_blocks(Pos(3, 4), Dir.RIGHT)
+
+        # Case 2: Place several walls to create a scenario where a new wall would block a player
+        # Place walls that almost block player A except for one path
+        game.wall_place(Pos(2, 1), Dir.UP)
+        game.wall_place(Pos(2, 2), Dir.UP)
+        game.wall_place(Pos(2, 3), Dir.UP)
+        game.wall_place(Pos(2, 4), Dir.UP)
+        game.wall_place(Pos(2, 5), Dir.UP)
+        game.wall_place(Pos(2, 6), Dir.UP)
+        game.wall_place(Pos(2, 7), Dir.UP)
+        game.wall_place(Pos(2, 8), Dir.UP)
+
+        # Placing this wall would completely block player A
+        assert game.wall_placement_blocks(Pos(2, 0), Dir.UP)
+
+        # Case 3: Create a narrow corridor between the two players so that they end up
+        #         facing each other without the ability to side-step, effectivelly blocking
+        #         each other's goal.
+        #         NOTE that for the current implementation, this should already be considered a
+        #         block even if it's possible for the opposing player to sidestep it. So for
+        #         explicitness we check for this current behavior, but we may change it so that
+        #         in the future we only block on the full corridor (updating prompts/documentation).
+        game = GameState.new_game()
+
+        # Every row except the last
+        for row in range(constants.BOARD_GRID_SIZE - 1):
+            game.wall_place(Pos(row, start_col), Dir.LEFT)
+            game.wall_place(Pos(row, start_col), Dir.RIGHT)
+
+        last_row = constants.BOARD_GRID_SIZE - 1
+
+        # make sure it indeed blocks
+        assert game.wall_placement_blocks(Pos(last_row, start_col), Dir.LEFT)
+
+        # let's make sure it only blocks player 0, not player 1 since player 1 can still
+        # sidestep the issue
+        game.wall_place(Pos(last_row, start_col), Dir.LEFT)
+        assert not game._player_can_reach_goal(0)
+        assert game._player_can_reach_goal(1)
+
+        # Case 4: Move the second player down and make a box around him to make sure we're also
+        #         checking if player 1 is blocked and not only player 0
+        game = GameState.new_game()
+        game.move(1, Dir.DOWN)
+        game.move(1, Dir.DOWN)
+        game.move(1, Dir.DOWN)
+
+        player_pos = game.players[1].pos
+        game.wall_place(player_pos, Dir.UP)
+        game.wall_place(player_pos, Dir.DOWN)
+        game.wall_place(player_pos, Dir.LEFT)
+        game.wall_place(player_pos, Dir.RIGHT)
+
+        assert game._player_can_reach_goal(0)
+        assert not game._player_can_reach_goal(1)
