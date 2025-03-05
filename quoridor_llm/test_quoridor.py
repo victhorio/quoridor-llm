@@ -10,21 +10,21 @@ class TestQuoridorGame:
         game = GameState.new_game()
 
         # Check initial player positions
-        start_col = int(constants.BOARD_GRID_SIZE / 2)
+        start_col = int(constants.BOARD_SIZE / 2)
         assert game.players[0].pos == Pos(0, start_col)  # Player A at bottom
-        assert game.players[1].pos == Pos(constants.BOARD_GRID_SIZE - 1, start_col)  # Player B at top
+        assert game.players[1].pos == Pos(constants.BOARD_SIZE - 1, start_col)  # Player B at top
 
         # Check initial wall balance
         assert game.players[0].wall_balance == constants.PLAYER_WALL_START_COUNT
         assert game.players[1].wall_balance == constants.PLAYER_WALL_START_COUNT
 
         # Check that no walls are placed initially for both edge types
-        for row in range(constants.BOARD_GRID_SIZE - 1):
-            for col in range(constants.BOARD_GRID_SIZE):
+        for row in range(constants.BOARD_SIZE - 1):
+            for col in range(constants.BOARD_SIZE):
                 assert not game.edges_up(Pos(row, col))
 
-        for row in range(constants.BOARD_GRID_SIZE):
-            for col in range(constants.BOARD_GRID_SIZE - 1):
+        for row in range(constants.BOARD_SIZE):
+            for col in range(constants.BOARD_SIZE - 1):
                 assert not game.edges_right(Pos(row, col))
 
     def test_valid_moves(self):
@@ -43,7 +43,7 @@ class TestQuoridorGame:
         is_ok, message = game.move(1, Dir.DOWN)
         assert is_ok
         assert message == ""
-        assert game.players[1].pos == Pos(constants.BOARD_GRID_SIZE - 2, start_col)
+        assert game.players[1].pos == Pos(constants.BOARD_SIZE - 2, start_col)
 
         # Player A moves right twice and left thrice (valid)
         for i in range(3):
@@ -62,7 +62,7 @@ class TestQuoridorGame:
         game = GameState.new_game()
 
         # Move player A to the left edge
-        for _ in range(constants.BOARD_GRID_SIZE // 2):
+        for _ in range(constants.BOARD_SIZE // 2):
             game.move(0, Dir.LEFT)
 
         # Try to move beyond the left boundary
@@ -74,7 +74,7 @@ class TestQuoridorGame:
         game = GameState.new_game()
 
         # Move player B to the right edge
-        for _ in range(constants.BOARD_GRID_SIZE // 2):
+        for _ in range(constants.BOARD_SIZE // 2):
             game.move(1, Dir.RIGHT)
 
         # Try to move beyond the right boundary
@@ -112,11 +112,11 @@ class TestQuoridorGame:
         """Test that players cannot move to the same position."""
         game = GameState.new_game()
 
-        for _ in range(constants.BOARD_GRID_SIZE // 2):
+        for _ in range(constants.BOARD_SIZE // 2):
             is_ok, _ = game.move(0, Dir.UP)
             assert is_ok
 
-        for _ in range(constants.BOARD_GRID_SIZE // 2 - 1):
+        for _ in range(constants.BOARD_SIZE // 2 - 1):
             is_ok, _ = game.move(1, Dir.DOWN)
             assert is_ok
 
@@ -138,9 +138,9 @@ class TestQuoridorGame:
         # Move player A to the top row to win, noting that we need to sidestep the
         # other player first with a single LEFT move
         is_ok, message = game.move(0, Dir.LEFT)
-        for _ in range(constants.BOARD_GRID_SIZE - 1):
+        for _ in range(constants.BOARD_SIZE - 1):
             is_ok, message = game.move(0, Dir.UP)
-            if _ < constants.BOARD_GRID_SIZE - 2:
+            if _ < constants.BOARD_SIZE - 2:
                 assert is_ok
             else:
                 assert not is_ok
@@ -153,9 +153,9 @@ class TestQuoridorGame:
         is_ok, message = game.move(1, Dir.RIGHT)
         assert is_ok
         assert message == ""
-        for _ in range(constants.BOARD_GRID_SIZE - 1):
+        for _ in range(constants.BOARD_SIZE - 1):
             is_ok, message = game.move(1, Dir.DOWN)
-            if _ < constants.BOARD_GRID_SIZE - 2:
+            if _ < constants.BOARD_SIZE - 2:
                 assert is_ok
             else:
                 assert not is_ok
@@ -169,16 +169,31 @@ class TestQuoridorGame:
         game.wall_place(Pos(2, 3), Dir.DOWN)
 
         # Verify wall is placed two different ways
-        assert game.wall_check(Pos(2, 3), Dir.DOWN)
-        assert game.wall_check(Pos(1, 3), Dir.UP)
+        assert game.wall_exists(Pos(2, 3), Dir.DOWN)
+        assert game.wall_exists(Pos(1, 3), Dir.UP)
 
         with pytest.raises(AssertionError):
             game.wall_place(Pos(1, 3), Dir.UP)
 
         # test near the edges don't throw exceptions
         game = GameState.new_game()
-        game.wall_place(Pos(constants.BOARD_GRID_SIZE - 2, 0), Dir.UP)
-        game.wall_place(Pos(0, constants.BOARD_GRID_SIZE - 2), Dir.RIGHT)
+        game.wall_place(Pos(constants.BOARD_SIZE - 2, 0), Dir.UP)
+        game.wall_place(Pos(0, constants.BOARD_SIZE - 2), Dir.RIGHT)
+
+    def test_invalid_wall_indexes_are_caught(self):
+        game = GameState.new_game()
+
+        with pytest.raises(IndexError):
+            game.wall_exists(game.players[0].pos, Dir.DOWN)
+
+        with pytest.raises(IndexError):
+            game.wall_exists(game.players[1].pos, Dir.UP)
+
+        with pytest.raises(IndexError):
+            game.wall_place(Pos(0, 0), Dir.LEFT)
+
+        with pytest.raises(IndexError):
+            game.wall_place(Pos(0, constants.BOARD_SIZE - 1), Dir.RIGHT)
 
     def test_wall_placement_check(self):
         """Test the wall_placement_check function for detecting blocking walls."""
@@ -213,11 +228,11 @@ class TestQuoridorGame:
         game = GameState.new_game()
 
         # Every row except the last
-        for row in range(constants.BOARD_GRID_SIZE - 1):
+        for row in range(constants.BOARD_SIZE - 1):
             game.wall_place(Pos(row, start_col), Dir.LEFT)
             game.wall_place(Pos(row, start_col), Dir.RIGHT)
 
-        last_row = constants.BOARD_GRID_SIZE - 1
+        last_row = constants.BOARD_SIZE - 1
 
         # make sure it indeed blocks
         assert game.wall_placement_blocks(Pos(last_row, start_col), Dir.LEFT)
@@ -225,8 +240,8 @@ class TestQuoridorGame:
         # let's make sure it only blocks player 0, not player 1 since player 1 can still
         # sidestep the issue
         game.wall_place(Pos(last_row, start_col), Dir.LEFT)
-        assert not game._player_can_reach_goal(0)
-        assert game._player_can_reach_goal(1)
+        assert not game._can_player_reach_goal(0)
+        assert game._can_player_reach_goal(1)
 
         # Case 4: Move the second player down and make a box around him to make sure we're also
         #         checking if player 1 is blocked and not only player 0
@@ -241,20 +256,5 @@ class TestQuoridorGame:
         game.wall_place(player_pos, Dir.LEFT)
         game.wall_place(player_pos, Dir.RIGHT)
 
-        assert game._player_can_reach_goal(0)
-        assert not game._player_can_reach_goal(1)
-
-    def test_invalid_wall_indexes_are_caught(self):
-        game = GameState.new_game()
-
-        with pytest.raises(IndexError):
-            game.wall_check(game.players[0].pos, Dir.DOWN)
-
-        with pytest.raises(IndexError):
-            game.wall_check(game.players[1].pos, Dir.UP)
-
-        with pytest.raises(IndexError):
-            game.wall_place(Pos(0, 0), Dir.LEFT)
-
-        with pytest.raises(IndexError):
-            game.wall_place(Pos(0, constants.BOARD_GRID_SIZE - 1), Dir.RIGHT)
+        assert game._can_player_reach_goal(0)
+        assert not game._can_player_reach_goal(1)

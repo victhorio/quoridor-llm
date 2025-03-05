@@ -1,3 +1,3 @@
 # Game information
-BOARD_GRID_SIZE = 9
+BOARD_SIZE = 9
 PLAYER_WALL_START_COUNT = 10
