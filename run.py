@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from quoridor_llm import aiutils, agent, quoridor
 
@@ -10,7 +11,7 @@ async def main():
 
     tools = [
         aiutils.tool_spec_create(
-            "move",
+            name="move",
             desc="Moves orthogonally",
             params=[
                 aiutils.ParamInfo(
@@ -23,7 +24,7 @@ async def main():
             ],
         ),
         aiutils.tool_spec_create(
-            "place_wall",
+            name="place_wall",
             desc="Places a 2-width wall somewhere on the board to block movement",
             params=[
                 aiutils.ParamInfo(
@@ -62,21 +63,25 @@ async def main():
 
     turn = 1
     while turn < 999:
-        hang()
-        print(game.as_str())
-
         for player in range(2):
-            hang()
-            completion = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    system_instructions,
-                    {"role": "user", "content": agent.prompt_action_load(game, player, turn, player_plans[player])},
-                ],
+            print(f"Player {player} turn starting now")
+
+            # this mutates the game and player_plans
+            is_over = await agent.play(
+                model="gpt-4o-mini" if player == 0 else "gpt-4o",
+                client=client,
                 tools=tools,
+                player_plans=player_plans,
+                system_instructions=system_instructions,
+                game=game,
+                player_idx=player,
+                turn=turn,
             )
 
-            print(completion)
+            print(game.as_str())
+
+            if is_over:
+                return
 
             hang()
 

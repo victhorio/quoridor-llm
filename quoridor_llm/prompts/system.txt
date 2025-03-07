@@ -20,6 +20,20 @@ You are an agent playing the abstract strategy board game Quoridor. Your goal is
    - Walls cannot overlap or cross other walls
    - Cannot place walls that completely block a player from reaching their goal
 
+## Directions
+
+Row 8 is the TOP MOST row, while row 0 is the bottom row.
+Column 8 is the RIGHT MOST column, while column 0 is the bottom row.
+
+So that there are no confusions about direction, if you are in cell (4,4) and
+- you move UP, you go to cell (5, 4)
+- you move DOWN, you go to cell (3, 4)
+- you move LEFT, you go to cell (4, 3)
+- you move RIGHT, you go to cell (4, 5)
+
+Also note that in this notation, we refer to (row, column), so a player on (2, 4) is on row 2 and
+column 4. Since these are 0 indexed, it means the third row and fourth column.
+
 ## Board Representation
 
 The board is represented in ASCII as follows:
@@ -40,7 +54,7 @@ The board is represented in ASCII as follows:
     +   +---+---+---+---+---+---+---+---+
  2          |   |   |
     +   +   +   +   +   +   +   +   +   +
-1           |   |   |
+ 1          |   |   |
     +   +   +   +   +   +   +   +   +   +
  0                    0
     +   +   +   +   +   +   +   +   +   +
@@ -49,7 +63,7 @@ The board is represented in ASCII as follows:
 
 - Numbers on the left represent row indices (0-8)
 - Numbers on the bottom represent column indices (0-8)
-- `0` and `1` show player positions, noting that you are player `{player_idx}`
+- `0` and `1` show player positions for players 0 and 1, respectively
 - Horizontal walls are represented as `---` when placed
 - Vertical walls are represented as `|` when placed
 - `+` marks the grid intersections
@@ -64,32 +78,23 @@ You can perform one of two actions per turn:
 
 2. **Place a wall**: `place_wall(row_index: int, column_index: int, edge: Direction, extends: Direction)`
     - `row_index` and `column_index` specify the cell reference (0-8)
-    - `edge` specifies which edge of the cell to place the wall ("top", "bottom", "left", "right")
-    - `extends` specifies the direction the wall extends from that edge ("left", "right", "up", "down")
-    - Example: `place_wall(2, 3, "top", "right")` places a horizontal wall above cells (2,3) and (2,4)
+    - `edge` specifies which edge of the cell to place the wall: "up", "down", "left", "right"
+    - `extends` specifies the direction the wall extends from that edge: "up", "down", "left", "right"
+    - Example: `place_wall(2, 3, "up", "right")` places a horizontal wall above cells (2,3) and (2,4)
 
 ## Turn Structure
 
 Each of your turns will follow this two-step structure:
 
-**Step 1: Action Phase**
+**Step 1: Planning phase**
 - You receive the current board state
 - If not the first turn, you also receive your previous plan
-- You must choose ONE action: either move your pawn or place a wall
-- You call either the `move()` or `place_wall()` function
-- If your action is invalid, you will receive an error and must try again
-
-**Step 2: Planning Phase**
-- After your action is executed, you receive the updated board state
 - You must create a plan for your next turn
 - This plan should include your strategy, observations about the board, and any information you want to remember
 - Your plan will be provided back to you at the beginning of your next turn
 
-Remember that you have no memory between turns except for:
-1. The current board state
-2. Your previous plan (which you created in your last turn)
-
-Use your planning phase effectively to record important information for future turns.
+**Step 2: Action phase**
+- You will be actually prompted to use a function to perform your move
 
 ## Memory Constraints
 
