@@ -18,6 +18,9 @@ class Pos:
     def __add__(self, other: "Pos") -> "Pos":
         return Pos(self.row + other.row, self.col + other.col)
 
+    def __str__(self) -> str:
+        return f"({self.row}, {self.col})"
+
 
 @dataclass
 class Player:
@@ -40,8 +43,31 @@ class Dir(Enum):
             return Pos(0, -1)
         if self == Dir.RIGHT:
             return Pos(0, 1)
-
         assert False, "unreachable code"
+
+    def __str__(self) -> str:
+        if self == Dir.UP:
+            return "up"
+        if self == Dir.DOWN:
+            return "down"
+        if self == Dir.LEFT:
+            return "left"
+        if self == Dir.RIGHT:
+            return "right"
+        assert False, "unreachable code"
+
+    @staticmethod
+    def from_str(s: str):
+        if s == "up":
+            return Dir.UP
+        if s == "down":
+            return Dir.DOWN
+        if s == "left":
+            return Dir.LEFT
+        if s == "right":
+            return Dir.RIGHT
+
+        raise ValueError(f"the string `{s}` cannot be parsed as a direction")
 
 
 class Edges:
@@ -135,6 +161,52 @@ class GameState:
             return
 
         assert False, "unreachable code"
+
+    def wall_place_composite(self, cell: Pos, edge: Dir, extends: Dir) -> str:
+        """
+        Places a 2-width wall, starting from the `edge` edge of cell `cell`, extending to `extends`.
+        E.g. wall_place_composite((2, 4), Dir.UP, Dir.RIGHT) places a wall in the top edge of cells
+        (2,4) and (2,5).
+
+        This also performs checks to make sure if the moves are valid, and return a string in case
+        of an error.
+        """
+
+        # note that `extends` still makes sense even after the shift
+        try:
+            cell_can, edge_can = self._wall_canonical_index(cell, edge)
+        except IndexError:
+            return f"invalid move: the cell {cell} cannot have a wall in the `{edge}` edge"
+
+        if edge_can == Dir.UP and extends not in (Dir.LEFT, Dir.RIGHT):
+            return "If placing a horizontal edge (top or bottom), the `extends` direction needs to be a horizontal direction since it's a 2-width wall"
+        if edge_can == Dir.RIGHT and extends not in (Dir.UP, Dir.DOWN):
+            return "If placing a vertical edge (left or right), the `extends` direction needs to be a vertical direction since it's a 2-width wall"
+
+        cell_can_extends = cell_can + extends.as_pos_delta()
+        if not self._is_position_inbounds(cell_can_extends):
+            return "the `extends` direction extends to a cell that's out of the board"
+
+        # there's no more errors, if it's edge_can == Dir.UP, the row of cell_can_extends is the
+        # same as cell_can, so it's a valid row. the equivalent for Dir.RIGHT
+
+        if self.wall_exists(cell_can, edge_can) or self.wall_exists(cell_can_extends, edge_can):
+            return "the placement of this wall would overlap with an existing wall"
+
+        # the only potential issue left is blocking, so we create a copy of the game state to place
+        # the walls and perform the checks
+        game_copy = copy.deepcopy(self)
+        game_copy.wall_place(cell_can, edge_can)
+        game_copy.wall_place(cell_can_extends, edge_can)
+        if not game_copy._can_player_reach_goal(0):
+            return "the placement of this wall would make it IMPOSSIBLE for player 0 to win"
+        if not game_copy._can_player_reach_goal(1):
+            return "the placement of this wall would make it IMPOSSIBLE for player 1 to win"
+
+        # no more checks left, lfg
+        self.wall_place(cell_can, edge_can)
+        self.wall_place(cell_can_extends, edge_can)
+        return ""
 
     def wall_placement_blocks(self, pos: Pos, direction: Dir) -> bool:
         """
@@ -232,18 +304,24 @@ class GameState:
 
         # check if the new position is within the board boundaries
         if not self._is_position_inbounds(player_pos_new):
-            return False, "Cannot move outside the board boundaries"
+            return (
+                False,
+                f"attempted to move from {player_pos_cur} to {player_pos_new}, but cannot move outside the board boundaries",
+            )
 
         # check if there's a wall blocking the move
         if self.wall_exists(player_pos_cur, direction):
-            return False, "Cannot move through a wall"
+            return False, f"attempted to move from {player_pos_cur} to {player_pos_new}, but cannot move through a wall"
 
         # check player collision
         assert len(self.players) == 2, "Invalid Assumption: unexpected number of players"
         enemy_idx = 1 - player_idx  # (player_idx == 1) ? 0 : 1
         enemy_pos = self.players[enemy_idx].pos
         if player_pos_new == enemy_pos:
-            return False, "Tried to move to a cell already occupied by other player"
+            return (
+                False,
+                f"attempted to move from {player_pos_cur} to {player_pos_new}, but cannot move to a cell already occupied by other player",
+            )
 
         # update the player's position
         self.players[player_idx].pos = player_pos_new

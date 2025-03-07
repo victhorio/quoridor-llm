@@ -258,3 +258,101 @@ class TestQuoridorGame:
 
         assert game._can_player_reach_goal(0)
         assert not game._can_player_reach_goal(1)
+
+    def test_wall_place_composite(self):
+        """test the composite wall placement functionality."""
+        game = GameState.new_game()
+        N = constants.BOARD_SIZE
+
+        result = game.wall_place_composite(Pos(N - 1, 0), Dir.DOWN, Dir.RIGHT)
+        assert not result
+        assert game.wall_exists(Pos(N - 1, 0), Dir.DOWN)
+        assert game.wall_exists(Pos(N - 1, 1), Dir.DOWN)
+
+        result = game.wall_place_composite(Pos(1, 0), Dir.RIGHT, Dir.DOWN)
+        assert result == ""
+        assert game.wall_exists(Pos(1, 1), Dir.LEFT)
+        assert game.wall_exists(Pos(0, 1), Dir.LEFT)
+
+    def test_wall_place_composite_invalid_cell(self):
+        """Test composite wall placement with invalid cell position."""
+        game = GameState.new_game()
+
+        # Invalid cell position (outside board boundaries)
+        result = game.wall_place_composite(Pos(-1, 3), Dir.UP, Dir.RIGHT)
+        assert "invalid move" in result
+
+        # Invalid cell position with wall at edge of board
+        result = game.wall_place_composite(Pos(constants.BOARD_SIZE - 1, 3), Dir.UP, Dir.RIGHT)
+        assert "invalid move" in result
+
+    def test_wall_place_composite_invalid_direction(self):
+        """Test composite wall placement with invalid direction combinations."""
+        game = GameState.new_game()
+
+        # Invalid direction combination for horizontal wall
+        result = game.wall_place_composite(Pos(3, 3), Dir.UP, Dir.UP)
+        assert "horizontal direction" in result
+
+        # Invalid direction combination for vertical wall
+        result = game.wall_place_composite(Pos(3, 3), Dir.RIGHT, Dir.LEFT)
+        assert "vertical direction" in result
+
+    def test_wall_place_composite_out_of_bounds(self):
+        """Test composite wall placement that would extend outside the board."""
+        game = GameState.new_game()
+
+        # Wall extending outside board horizontally
+        result = game.wall_place_composite(Pos(3, constants.BOARD_SIZE - 1), Dir.UP, Dir.RIGHT)
+        assert "out of the board" in result or "invalid move" in result
+
+        # Wall extending outside board vertically
+        result = game.wall_place_composite(Pos(constants.BOARD_SIZE - 1, 3), Dir.RIGHT, Dir.UP)
+        assert "out of the board" in result or "invalid move" in result
+
+    def test_wall_place_composite_overlap(self):
+        """Test composite wall placement that would overlap with existing walls."""
+        game = GameState.new_game()
+
+        # Place a wall first
+        game.wall_place(Pos(4, 4), Dir.UP)
+
+        # Try to place a composite wall that would overlap
+        result = game.wall_place_composite(Pos(4, 3), Dir.UP, Dir.RIGHT)
+        assert "overlap" in result
+
+    def test_wall_place_composite_blocking(self):
+        """Test composite wall placement that would block a player from reaching their goal."""
+        game = GameState.new_game()
+
+        # let's draw up the following game state manually:
+        #     +   +   +   +   +   +   +   +   +   +
+        #  8                    1
+        #     +   +   +   +   +   +   +   +   +   +
+        #  7
+        #     +   +   +   +   +   +   +   +   +   +
+        #  6
+        #     +   +   +   +   +   +   +   +   +   +
+        #  5
+        #     +   +   +   +   +   +   +   +   +   +
+        #  4
+        #     +   +   +   +   +   +   +   +   +   +
+        #  3
+        #     +---+---+---+---+---+---+---+---+
+        #  2                                  |
+        #     +   +   +   +   +   +   +   +   +   +
+        #  1                                  |
+        #     +   +   +   +   +   +   +   +ooo|ooo+
+        #  0                    0
+        #     +   +   +   +   +   +   +   +   +   +
+        #       0   1   2   3   4   5   6   7   8
+        # and make a final placement on (0,7)/UP/RIGHT that should block
+
+        assert constants.BOARD_SIZE == 9, "this test is hardcoded on the board size"
+        assert not game.wall_place_composite(Pos(2, 0), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place_composite(Pos(2, 2), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place_composite(Pos(2, 4), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place_composite(Pos(2, 6), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place_composite(Pos(2, 7), Dir.RIGHT, Dir.DOWN)
+
+        assert "IMPOSSIBLE" in game.wall_place_composite(Pos(0, 7), Dir.UP, Dir.RIGHT)
