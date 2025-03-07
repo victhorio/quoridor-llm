@@ -93,8 +93,8 @@ class TestQuoridorGame:
 
         # Let's place walls so that if the player tries to move up once or left twice they'll
         # face an error
-        game.wall_place(player.pos, Dir.UP)
-        game.wall_place(player.pos + Dir.LEFT.as_pos_delta(), Dir.LEFT)
+        game._wall_place_single(player.pos, Dir.UP)
+        game._wall_place_single(player.pos + Dir.LEFT.as_pos_delta(), Dir.LEFT)
 
         # Try to move through the wall above
         is_ok, message = game.move(0, Dir.UP)
@@ -166,34 +166,34 @@ class TestQuoridorGame:
         game = GameState.new_game()
 
         # Place a wall
-        game.wall_place(Pos(2, 3), Dir.DOWN)
+        game._wall_place_single(Pos(2, 3), Dir.DOWN)
 
         # Verify wall is placed two different ways
-        assert game.wall_exists(Pos(2, 3), Dir.DOWN)
-        assert game.wall_exists(Pos(1, 3), Dir.UP)
+        assert game._wall_exists(Pos(2, 3), Dir.DOWN)
+        assert game._wall_exists(Pos(1, 3), Dir.UP)
 
         with pytest.raises(AssertionError):
-            game.wall_place(Pos(1, 3), Dir.UP)
+            game._wall_place_single(Pos(1, 3), Dir.UP)
 
         # test near the edges don't throw exceptions
         game = GameState.new_game()
-        game.wall_place(Pos(constants.BOARD_SIZE - 2, 0), Dir.UP)
-        game.wall_place(Pos(0, constants.BOARD_SIZE - 2), Dir.RIGHT)
+        game._wall_place_single(Pos(constants.BOARD_SIZE - 2, 0), Dir.UP)
+        game._wall_place_single(Pos(0, constants.BOARD_SIZE - 2), Dir.RIGHT)
 
     def test_invalid_wall_indexes_are_caught(self):
         game = GameState.new_game()
 
         with pytest.raises(IndexError):
-            game.wall_exists(game.players[0].pos, Dir.DOWN)
+            game._wall_exists(game.players[0].pos, Dir.DOWN)
 
         with pytest.raises(IndexError):
-            game.wall_exists(game.players[1].pos, Dir.UP)
+            game._wall_exists(game.players[1].pos, Dir.UP)
 
         with pytest.raises(IndexError):
-            game.wall_place(Pos(0, 0), Dir.LEFT)
+            game._wall_place_single(Pos(0, 0), Dir.LEFT)
 
         with pytest.raises(IndexError):
-            game.wall_place(Pos(0, constants.BOARD_SIZE - 1), Dir.RIGHT)
+            game._wall_place_single(Pos(0, constants.BOARD_SIZE - 1), Dir.RIGHT)
 
     def test_wall_placement_check(self):
         """Test the wall_placement_check function for detecting blocking walls."""
@@ -202,21 +202,21 @@ class TestQuoridorGame:
 
         # Case 1: Wall that doesn't block any player's path
         # This wall doesn't block either player from reaching their goal
-        assert not game.wall_placement_blocks(Pos(3, 4), Dir.RIGHT)
+        assert not game._wall_placement_blocks(Pos(3, 4), Dir.RIGHT)
 
         # Case 2: Place several walls to create a scenario where a new wall would block a player
         # Place walls that almost block player A except for one path
-        game.wall_place(Pos(2, 1), Dir.UP)
-        game.wall_place(Pos(2, 2), Dir.UP)
-        game.wall_place(Pos(2, 3), Dir.UP)
-        game.wall_place(Pos(2, 4), Dir.UP)
-        game.wall_place(Pos(2, 5), Dir.UP)
-        game.wall_place(Pos(2, 6), Dir.UP)
-        game.wall_place(Pos(2, 7), Dir.UP)
-        game.wall_place(Pos(2, 8), Dir.UP)
+        game._wall_place_single(Pos(2, 1), Dir.UP)
+        game._wall_place_single(Pos(2, 2), Dir.UP)
+        game._wall_place_single(Pos(2, 3), Dir.UP)
+        game._wall_place_single(Pos(2, 4), Dir.UP)
+        game._wall_place_single(Pos(2, 5), Dir.UP)
+        game._wall_place_single(Pos(2, 6), Dir.UP)
+        game._wall_place_single(Pos(2, 7), Dir.UP)
+        game._wall_place_single(Pos(2, 8), Dir.UP)
 
         # Placing this wall would completely block player A
-        assert game.wall_placement_blocks(Pos(2, 0), Dir.UP)
+        assert game._wall_placement_blocks(Pos(2, 0), Dir.UP)
 
         # Case 3: Create a narrow corridor between the two players so that they end up
         #         facing each other without the ability to side-step, effectivelly blocking
@@ -229,17 +229,17 @@ class TestQuoridorGame:
 
         # Every row except the last
         for row in range(constants.BOARD_SIZE - 1):
-            game.wall_place(Pos(row, start_col), Dir.LEFT)
-            game.wall_place(Pos(row, start_col), Dir.RIGHT)
+            game._wall_place_single(Pos(row, start_col), Dir.LEFT)
+            game._wall_place_single(Pos(row, start_col), Dir.RIGHT)
 
         last_row = constants.BOARD_SIZE - 1
 
         # make sure it indeed blocks
-        assert game.wall_placement_blocks(Pos(last_row, start_col), Dir.LEFT)
+        assert game._wall_placement_blocks(Pos(last_row, start_col), Dir.LEFT)
 
         # let's make sure it only blocks player 0, not player 1 since player 1 can still
         # sidestep the issue
-        game.wall_place(Pos(last_row, start_col), Dir.LEFT)
+        game._wall_place_single(Pos(last_row, start_col), Dir.LEFT)
         assert not game._can_player_reach_goal(0)
         assert game._can_player_reach_goal(1)
 
@@ -251,10 +251,10 @@ class TestQuoridorGame:
         game.move(1, Dir.DOWN)
 
         player_pos = game.players[1].pos
-        game.wall_place(player_pos, Dir.UP)
-        game.wall_place(player_pos, Dir.DOWN)
-        game.wall_place(player_pos, Dir.LEFT)
-        game.wall_place(player_pos, Dir.RIGHT)
+        game._wall_place_single(player_pos, Dir.UP)
+        game._wall_place_single(player_pos, Dir.DOWN)
+        game._wall_place_single(player_pos, Dir.LEFT)
+        game._wall_place_single(player_pos, Dir.RIGHT)
 
         assert game._can_player_reach_goal(0)
         assert not game._can_player_reach_goal(1)
@@ -264,26 +264,26 @@ class TestQuoridorGame:
         game = GameState.new_game()
         N = constants.BOARD_SIZE
 
-        result = game.wall_place_composite(Pos(N - 1, 0), Dir.DOWN, Dir.RIGHT)
+        result = game.wall_place(Pos(N - 1, 0), Dir.DOWN, Dir.RIGHT)
         assert not result
-        assert game.wall_exists(Pos(N - 1, 0), Dir.DOWN)
-        assert game.wall_exists(Pos(N - 1, 1), Dir.DOWN)
+        assert game._wall_exists(Pos(N - 1, 0), Dir.DOWN)
+        assert game._wall_exists(Pos(N - 1, 1), Dir.DOWN)
 
-        result = game.wall_place_composite(Pos(1, 0), Dir.RIGHT, Dir.DOWN)
+        result = game.wall_place(Pos(1, 0), Dir.RIGHT, Dir.DOWN)
         assert result == ""
-        assert game.wall_exists(Pos(1, 1), Dir.LEFT)
-        assert game.wall_exists(Pos(0, 1), Dir.LEFT)
+        assert game._wall_exists(Pos(1, 1), Dir.LEFT)
+        assert game._wall_exists(Pos(0, 1), Dir.LEFT)
 
     def test_wall_place_composite_invalid_cell(self):
         """Test composite wall placement with invalid cell position."""
         game = GameState.new_game()
 
         # Invalid cell position (outside board boundaries)
-        result = game.wall_place_composite(Pos(-1, 3), Dir.UP, Dir.RIGHT)
+        result = game.wall_place(Pos(-1, 3), Dir.UP, Dir.RIGHT)
         assert "invalid move" in result
 
         # Invalid cell position with wall at edge of board
-        result = game.wall_place_composite(Pos(constants.BOARD_SIZE - 1, 3), Dir.UP, Dir.RIGHT)
+        result = game.wall_place(Pos(constants.BOARD_SIZE - 1, 3), Dir.UP, Dir.RIGHT)
         assert "invalid move" in result
 
     def test_wall_place_composite_invalid_direction(self):
@@ -291,11 +291,11 @@ class TestQuoridorGame:
         game = GameState.new_game()
 
         # Invalid direction combination for horizontal wall
-        result = game.wall_place_composite(Pos(3, 3), Dir.UP, Dir.UP)
+        result = game.wall_place(Pos(3, 3), Dir.UP, Dir.UP)
         assert "horizontal direction" in result
 
         # Invalid direction combination for vertical wall
-        result = game.wall_place_composite(Pos(3, 3), Dir.RIGHT, Dir.LEFT)
+        result = game.wall_place(Pos(3, 3), Dir.RIGHT, Dir.LEFT)
         assert "vertical direction" in result
 
     def test_wall_place_composite_out_of_bounds(self):
@@ -303,11 +303,11 @@ class TestQuoridorGame:
         game = GameState.new_game()
 
         # Wall extending outside board horizontally
-        result = game.wall_place_composite(Pos(3, constants.BOARD_SIZE - 1), Dir.UP, Dir.RIGHT)
+        result = game.wall_place(Pos(3, constants.BOARD_SIZE - 1), Dir.UP, Dir.RIGHT)
         assert "out of the board" in result or "invalid move" in result
 
         # Wall extending outside board vertically
-        result = game.wall_place_composite(Pos(constants.BOARD_SIZE - 1, 3), Dir.RIGHT, Dir.UP)
+        result = game.wall_place(Pos(constants.BOARD_SIZE - 1, 3), Dir.RIGHT, Dir.UP)
         assert "out of the board" in result or "invalid move" in result
 
     def test_wall_place_composite_overlap(self):
@@ -315,10 +315,10 @@ class TestQuoridorGame:
         game = GameState.new_game()
 
         # Place a wall first
-        game.wall_place(Pos(4, 4), Dir.UP)
+        game._wall_place_single(Pos(4, 4), Dir.UP)
 
         # Try to place a composite wall that would overlap
-        result = game.wall_place_composite(Pos(4, 3), Dir.UP, Dir.RIGHT)
+        result = game.wall_place(Pos(4, 3), Dir.UP, Dir.RIGHT)
         assert "overlap" in result
 
     def test_wall_place_composite_blocking(self):
@@ -349,10 +349,10 @@ class TestQuoridorGame:
         # and make a final placement on (0,7)/UP/RIGHT that should block
 
         assert constants.BOARD_SIZE == 9, "this test is hardcoded on the board size"
-        assert not game.wall_place_composite(Pos(2, 0), Dir.UP, Dir.RIGHT)
-        assert not game.wall_place_composite(Pos(2, 2), Dir.UP, Dir.RIGHT)
-        assert not game.wall_place_composite(Pos(2, 4), Dir.UP, Dir.RIGHT)
-        assert not game.wall_place_composite(Pos(2, 6), Dir.UP, Dir.RIGHT)
-        assert not game.wall_place_composite(Pos(2, 7), Dir.RIGHT, Dir.DOWN)
+        assert not game.wall_place(Pos(2, 0), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place(Pos(2, 2), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place(Pos(2, 4), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place(Pos(2, 6), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place(Pos(2, 7), Dir.RIGHT, Dir.DOWN)
 
-        assert "IMPOSSIBLE" in game.wall_place_composite(Pos(0, 7), Dir.UP, Dir.RIGHT)
+        assert "IMPOSSIBLE" in game.wall_place(Pos(0, 7), Dir.UP, Dir.RIGHT)
