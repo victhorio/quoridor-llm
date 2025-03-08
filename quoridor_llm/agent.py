@@ -3,11 +3,58 @@ import re
 
 from . import aiutils, constants, quoridor
 
+TOOLS = [
+    aiutils.tool_spec_create(
+        name="move",
+        desc="Moves orthogonally",
+        params=[
+            aiutils.ParamInfo(
+                name="direction",
+                type="string",
+                desc="The direction you wish the move.",
+                required=True,
+                enum=["up", "down", "left", "right"],
+            )
+        ],
+    ),
+    aiutils.tool_spec_create(
+        name="place_wall",
+        desc="Places a 2-width wall somewhere on the board to block movement",
+        params=[
+            aiutils.ParamInfo(
+                "row",
+                type="integer",
+                desc="The row (0-8) of the cell of interest",
+                required=True,
+            ),
+            aiutils.ParamInfo(
+                "col",
+                type="integer",
+                desc="The col (0-8) of the cell of interest",
+                required=True,
+            ),
+            aiutils.ParamInfo(
+                "edge",
+                type="string",
+                desc="Which edge of the row described by `(row,col)` that should receive the wall",
+                required=True,
+                enum=["up", "down", "left", "right"],
+            ),
+            aiutils.ParamInfo(
+                "extends",
+                type="string",
+                desc="In what direction should the wall extend. For example in place_wall(2, 4, 'top', 'right') the wall will be added on the top edge of cells (2, 4) and (2, 5).",
+                required=True,
+                enum=["up", "down", "left", "right"],
+            ),
+        ],
+    ),
+]
+
 
 async def play_turn(
     model: str,
     client: aiutils.AsyncOpenAI,
-    tools: list[dict],
     player_plans: list[str],
     system_instructions: str,
     game: quoridor.GameState,
@@ -44,7 +91,7 @@ async def play_turn(
     completion = await client.chat.completions.create(
         model=model,
         messages=messages,
-        tools=tools,
+        tools=TOOLS,
         tool_choice="required",
     )
 
@@ -77,9 +124,7 @@ async def play_turn(
                 aiutils.tool_result_create(tool_call, err_msg),
             ]
         )
-        return await play_turn(
-            model, client, tools, player_plans, system_instructions, game, player_idx, turn, messages
-        )
+        return await play_turn(model, client, player_plans, system_instructions, game, player_idx, turn, messages)
 
     return False
 
