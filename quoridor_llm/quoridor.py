@@ -71,7 +71,7 @@ class Dir(Enum):
 
 
 class Edges:
-    _cells = list[bool]
+    _cells: list[bool]
     rows: int
     cols: int
 

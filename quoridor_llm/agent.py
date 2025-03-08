@@ -117,7 +117,7 @@ async def play_turn(
         edge = quoridor.Dir.from_str(args["edge"])
         extends = quoridor.Dir.from_str(args["extends"])
         print(f"Player {player_idx}: place_wall({cell}, {edge}, {extends})")
-        err_msg = game.wall_place(cell, edge, extends)
+        err_msg = game.wall_place(player_idx, cell, edge, extends)
 
     if err_msg:
         print(f"Error: {err_msg}")
@@ -135,7 +135,13 @@ async def play_turn(
 
 def prompt_planning_load(game: quoridor.GameState, player_idx: int, turn: int, previous_plan: str) -> str:
     target_row = 0 if player_idx == 1 else constants.BOARD_SIZE - 1
+    target_row_opp = 0 if player_idx == 0 else constants.BOARD_SIZE - 1
+
     target_direction = "DOWN" if player_idx == 1 else "UP"
+    target_direction_opp = "DOWN" if player_idx == 0 else "UP"
+
+    target_objective = f"move {target_direction} towards row {target_row}"
+    target_objective_opp = f"move {target_direction_opp} towards row {target_row_opp}"
 
     prompt = aiutils.prompt_read("planning_phase").format(
         turn_number=turn,
@@ -144,7 +150,8 @@ def prompt_planning_load(game: quoridor.GameState, player_idx: int, turn: int, p
         player1_pos=game.players[1].pos,
         player0_walls=game.players[0].wall_balance,
         player1_walls=game.players[1].wall_balance,
-        player_objective=f"move {target_direction} towards row {target_row}",
+        player_objective=target_objective,
+        opponent_objective=target_objective_opp,
         wall_placements=game.edge_representations(),
         previous_plan=previous_plan,
     )

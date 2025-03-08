@@ -12,7 +12,7 @@ The opposing player has just moved. Here is the updated game state:
 - Player 0: {player0_walls} walls remaining
 - Player 1: {player1_walls} walls remaining
 
-**Your objective** is to {player_objective}.
+**Your objective** is to {player_objective}, while your opponents objective is to {opponent_objective}.
 
 **Currently placed walls:**
 {wall_placements}
