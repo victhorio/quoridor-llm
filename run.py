@@ -64,7 +64,7 @@ async def main():
             print(f"Player {player_idx} turn starting now")
 
             # this mutates the game and player_plans
-            is_over = await agent.play(
+            won = await agent.play_turn(
                 model="gpt-4o-mini" if player_idx == 0 else "o3-mini",
                 client=client,
                 tools=tools,
@@ -77,7 +77,7 @@ async def main():
 
             print(game.as_str())
 
-            if is_over:
+            if won:
                 return
 
 

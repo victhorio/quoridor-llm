@@ -4,7 +4,7 @@ import re
 from . import aiutils, constants, quoridor
 
 
-async def play(
+async def play_turn(
     model: str,
     client: aiutils.AsyncOpenAI,
     tools: list[dict],
@@ -56,9 +56,8 @@ async def play(
     if tool_call.function.name == "move":
         direction = quoridor.Dir.from_str(args["direction"])
         print(f"Player {player_idx}: move({direction})")
-        is_ok, err_msg = game.move(player_idx, direction)
-
-        if not is_ok and not err_msg:
+        won, err_msg = game.move(player_idx, direction)
+        if won:
             print(f"Player {player_idx} wins!")
             return True
     elif tool_call.function.name == "place_wall":
@@ -78,7 +77,9 @@ async def play(
                 aiutils.tool_result_create(tool_call, err_msg),
             ]
         )
-        return await play(model, client, tools, player_plans, system_instructions, game, player_idx, turn, messages)
+        return await play_turn(
+            model, client, tools, player_plans, system_instructions, game, player_idx, turn, messages
+        )
 
     return False
 
