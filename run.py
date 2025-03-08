@@ -1,7 +1,6 @@
 import asyncio
-import json
 
-from quoridor_llm import aiutils, agent, quoridor
+from quoridor_llm import agent, aiutils, quoridor
 
 
 async def main():
@@ -59,22 +58,20 @@ async def main():
 
     player_plans = ["This is the first turn, so you have not specified a plan yet."] * 2
 
-    hang = lambda: input("<Press enter to continue>")
-
     turn = 1
     while turn < 999:
-        for player in range(2):
-            print(f"Player {player} turn starting now")
+        for player_idx in range(2):
+            print(f"Player {player_idx} turn starting now")
 
             # this mutates the game and player_plans
             is_over = await agent.play(
-                model="gpt-4o-mini" if player == 0 else "gpt-4o",
+                model="gpt-4o-mini" if player_idx == 0 else "o3-mini",
                 client=client,
                 tools=tools,
                 player_plans=player_plans,
                 system_instructions=system_instructions,
                 game=game,
-                player_idx=player,
+                player_idx=player_idx,
                 turn=turn,
             )
 
@@ -82,8 +79,6 @@ async def main():
 
             if is_over:
                 return
-
-            hang()
 
 
 if __name__ == "__main__":

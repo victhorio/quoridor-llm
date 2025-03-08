@@ -1,11 +1,8 @@
 ## Turn {turn_number}
 
 You are Player {player_number} in a game of Quoridor.
-The opposing player has just moved. Here is the updated game state:
 
-<board>
-{board_representation}
-</board>
+The opposing player has just moved. Here is the updated game state:
 
 **Current player positions**
 - Player 0: {player0_pos}
@@ -15,7 +12,10 @@ The opposing player has just moved. Here is the updated game state:
 - Player 0: {player0_walls} walls remaining
 - Player 1: {player1_walls} walls remaining
 
-**Your objective** is to reach row {target_row}.
+**Your objective** is to {player_objective}.
+
+**Currently placed walls:**
+{wall_placements}
 
 Plan out your immediate next move. Include your strategy, observations about the board, and any
 information you want to remember for future turns. This plan will be shown to you at the beginning
@@ -26,13 +26,16 @@ of your next turn. Below is your previous plan, for reference.
 </previous_plan>
 
 Your full response to this message will be passed as a plan the next turn, so avoid filler sentences
-that may confuse you in the future!
-
-Remember, you move NEXT, and I will query for your action in a subsequent message. For now, just lay
-out your plan.
+that may confuse you in the future!  Remember, you move NEXT, and I will query for your action in a
+subsequent message. For now, just lay out your plan.
 
 Strategy tips:
 - Try to keep track if you're closer to winning than your enemy or otherwise
 - Remember to use wall placements whenever you need an edge against your enemy
 - Plan ahead!
 - Keep in mind your opponents potential moves in responses to your own
+
+Important: When reasoning about your next move, remember what the directions mean so you make the correct move.
+- Moving UP means a (+1, 0) delta, moving DOWN means a (-1, 0) delta
+- Moving RIGHT means a (0, +1) delta, moving LEFT means a (0, -1) delta
+- So, for example, to go from (8, 4) to (7, 4) you need to move DOWN

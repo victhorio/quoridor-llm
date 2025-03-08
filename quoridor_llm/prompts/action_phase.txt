@@ -1,12 +1,5 @@
-Now, choose ONE action:
-1. Move your pawn using
-2. Place a wall using
+Now, choose ONE action from the given tools, which boil down to:
+1. Move your pawn orthogonally
+2. Place a wall
 
-Important: you can only generate a SINGLE tool call, and in case of errors you will be prompted again
-
-Reminders:
-- The positions are (row, column)
-- Row 8 is the top row and row 0 is the bottom row
-- Column 8 is the right most row and column 0 is the bottom row
-- To increase the row number you move UP, to decrease the row number you move DOWN
-- To increase the column number you move RIGHT, to decrease the column number you move DOWN
+Important: you can only generate a SINGLE tool call, and in case of errors you will be prompted again with the error

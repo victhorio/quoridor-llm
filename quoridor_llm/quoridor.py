@@ -114,8 +114,10 @@ class GameState:
         return cls(
             edges_up=Edges(constants.BOARD_SIZE - 1, constants.BOARD_SIZE),
             edges_right=Edges(constants.BOARD_SIZE, constants.BOARD_SIZE - 1),
-            player_a=Player(Pos(0, player_start_col), constants.PLAYER_WALL_START_COUNT),
-            player_b=Player(Pos(constants.BOARD_SIZE - 1, player_start_col), constants.PLAYER_WALL_START_COUNT),
+            # player_a=Player(Pos(0, player_start_col), constants.PLAYER_WALL_START_COUNT),
+            # player_b=Player(Pos(constants.BOARD_SIZE - 1, player_start_col), constants.PLAYER_WALL_START_COUNT),
+            player_a=Player(Pos(3, player_start_col), constants.PLAYER_WALL_START_COUNT),
+            player_b=Player(Pos(5, player_start_col), constants.PLAYER_WALL_START_COUNT),
         )
 
     def wall_place(self, cell: Pos, edge: Dir, extends: Dir) -> str:
@@ -278,6 +280,21 @@ class GameState:
             row_coord_str += f" {col:2d} "
 
         return "\n".join(save_row(row_coord_str))
+
+    def edge_representations(self) -> str:
+        edges = list()
+        for i in range(constants.BOARD_SIZE):
+            for j in range(constants.BOARD_SIZE):
+                if i < constants.BOARD_SIZE - 1 and self.edges_up(Pos(i, j)):
+                    edges.append([(i, j), (i + 1, j)])
+                if j < constants.BOARD_SIZE - 1 and self.edges_right(Pos(i, j)):
+                    edges.append([(i, j), (i, j + 1)])
+
+        s = "<No walls were placed yet>"
+        if edges:
+            s = "\n".join(f"- wall between {e[0]} and {e[1]}" for e in edges)
+
+        return s
 
     def _wall_canonical_index(self, pos: Pos, direction: Dir) -> tuple[Pos, Dir]:
         # if the direction is not `up` or `right`, we change the reference position `pos`
