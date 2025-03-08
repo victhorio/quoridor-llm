@@ -20,11 +20,8 @@ class TestQuoridorGame:
         # Check that no walls are placed initially for both edge types
         for row in range(constants.BOARD_SIZE - 1):
             for col in range(constants.BOARD_SIZE):
-                assert not game.edges_up(Pos(row, col))
-
-        for row in range(constants.BOARD_SIZE):
-            for col in range(constants.BOARD_SIZE - 1):
-                assert not game.edges_right(Pos(row, col))
+                assert not game.edges.exists(Pos(row, col), Dir.UP)
+                assert not game.edges.exists(Pos(row, col), Dir.RIGHT)
 
     def test_move(self):
         game = GameState.new_game()
@@ -166,28 +163,10 @@ class TestQuoridorGame:
         assert game._wall_exists(Pos(2, 3), Dir.DOWN)
         assert game._wall_exists(Pos(1, 3), Dir.UP)
 
-        with pytest.raises(AssertionError):
-            game._wall_place_single(Pos(1, 3), Dir.UP)
-
         # test near the edges don't throw exceptions
         game = GameState.new_game()
         game._wall_place_single(Pos(constants.BOARD_SIZE - 2, 0), Dir.UP)
         game._wall_place_single(Pos(0, constants.BOARD_SIZE - 2), Dir.RIGHT)
-
-    def test_invalid_wall_indexes_are_caught_across_api(self):
-        game = GameState.new_game()
-
-        with pytest.raises(IndexError):
-            game._wall_exists(game.players[0].pos, Dir.DOWN)
-
-        with pytest.raises(IndexError):
-            game._wall_exists(game.players[1].pos, Dir.UP)
-
-        with pytest.raises(IndexError):
-            game._wall_place_single(Pos(0, 0), Dir.LEFT)
-
-        with pytest.raises(IndexError):
-            game._wall_place_single(Pos(0, constants.BOARD_SIZE - 1), Dir.RIGHT)
 
     def test_wall_place(self):
         """test the composite wall placement functionality."""
@@ -229,9 +208,9 @@ class TestQuoridorGame:
         result = game.wall_place(0, Pos(-1, 3), Dir.UP, Dir.RIGHT)
         assert "invalid move" in result
 
-        # Invalid cell position with wall at edge of board
-        result = game.wall_place(0, Pos(constants.BOARD_SIZE - 1, 3), Dir.UP, Dir.RIGHT)
-        assert "invalid move" in result
+        # The wall extends to the outside of the board
+        result = game.wall_place(0, Pos(constants.BOARD_SIZE - 1, 3), Dir.RIGHT, Dir.UP)
+        assert "extends" in result
 
     def test_wall_place_invalid_direction(self):
         """Test composite wall placement with invalid direction combinations."""

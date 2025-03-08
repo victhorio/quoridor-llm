@@ -10,10 +10,13 @@ from enum import Enum
 from . import constants
 
 
-@dataclass(frozen=True)
+@dataclass
 class Pos:
     row: int
     col: int
+
+    def __hash__(self) -> int:
+        return hash((self.row, self.col))
 
     def __add__(self, other: "Pos") -> "Pos":
         return Pos(self.row + other.row, self.col + other.col)
@@ -45,17 +48,6 @@ class Dir(Enum):
             return Pos(0, 1)
         assert False, "unreachable code"
 
-    def __str__(self) -> str:
-        if self == Dir.UP:
-            return "up"
-        if self == Dir.DOWN:
-            return "down"
-        if self == Dir.LEFT:
-            return "left"
-        if self == Dir.RIGHT:
-            return "right"
-        assert False, "unreachable code"
-
     @staticmethod
     def from_str(s: str):
         if s == "up":
@@ -71,44 +63,53 @@ class Dir(Enum):
 
 
 class Edges:
-    _cells: list[bool]
+    _data: list[int]
     rows: int
     cols: int
 
+    MASK_TOP = 0b01
+    MASK_RIGHT = 0b10
+
     def __init__(self, rows: int, cols: int):
-        self._cells = [False] * rows * cols
+        self._data = [0] * rows * cols
         self.rows = rows
         self.cols = cols
 
-    def __call__(self, pos: Pos) -> bool:
-        return self._cells[pos.row * self.cols + pos.col]
+    def exists(self, pos: Pos, direction: Dir) -> bool:
+        """Returns whether there's a wall in direction `direction` from square `pos`."""
 
-    def set(self, pos: Pos) -> None:
+        if direction == Dir.DOWN:
+            return self.exists(pos + Dir.DOWN.as_pos_delta(), Dir.UP)
+        if direction == Dir.LEFT:
+            return self.exists(pos + Dir.LEFT.as_pos_delta(), Dir.RIGHT)
+
+        mask = self.MASK_TOP if direction == Dir.UP else self.MASK_RIGHT
         idx = pos.row * self.cols + pos.col
-        assert not self._cells[idx], "Placing a wall on top of another wall"
-        self._cells[idx] = True
+        return self._data[idx] & mask
+
+    def place(self, pos: Pos, direction: Dir) -> None:
+        """Sets a wall in direction `direction` from square `pos`."""
+
+        if direction == Dir.DOWN:
+            return self.place(pos + Dir.DOWN.as_pos_delta(), Dir.UP)
+        if direction == Dir.LEFT:
+            return self.place(pos + Dir.LEFT.as_pos_delta(), Dir.RIGHT)
+
+        mask = self.MASK_TOP if direction == Dir.UP else self.MASK_RIGHT
+        idx = pos.row * self.cols + pos.col
+        self._data[idx] |= mask
 
 
 class GameState:
-    # stores the player information
     players: tuple[Player, Player]
-    # edges_up and edges_right each store, respectively, a boolean flag indicating if the top/right
-    # edge of cell (i, j) has a wall or not, noting that the external edges of the board cannot have
-    # edges, so the top-most cells don't own `up` edges, and the right-most cells don't own `right`
-    # edges
-    edges_up: Edges
-    edges_right: Edges
+    edges: Edges
 
-    def __init__(self, edges_up: Edges, edges_right: Edges, player_a: Player, player_b: Player):
-        assert edges_up.cols == constants.BOARD_SIZE
-        assert edges_up.rows == constants.BOARD_SIZE - 1  # the top-most row doesn't have a top edge
+    def __init__(self, edges: Edges, player_a: Player, player_b: Player):
+        assert edges.cols == edges.rows
+        assert edges.cols == constants.BOARD_SIZE
 
-        assert edges_right.cols == constants.BOARD_SIZE - 1  # the right-most column doesn't have a right edge
-        assert edges_right.rows == constants.BOARD_SIZE
-
-        self.edges_up = edges_up
-        self.edges_right = edges_right
         self.players = (player_a, player_b)
+        self.edges = edges
 
     @classmethod
     def new_game(cls):
@@ -116,15 +117,12 @@ class GameState:
 
         player_start_col = int(constants.BOARD_SIZE / 2)
         return cls(
-            edges_up=Edges(constants.BOARD_SIZE - 1, constants.BOARD_SIZE),
-            edges_right=Edges(constants.BOARD_SIZE, constants.BOARD_SIZE - 1),
+            edges=Edges(constants.BOARD_SIZE, constants.BOARD_SIZE),
             player_a=Player(Pos(0, player_start_col), constants.PLAYER_WALL_START_COUNT),
             player_b=Player(Pos(constants.BOARD_SIZE - 1, player_start_col), constants.PLAYER_WALL_START_COUNT),
-            # player_a=Player(Pos(3, player_start_col), constants.PLAYER_WALL_START_COUNT),
-            # player_b=Player(Pos(5, player_start_col), constants.PLAYER_WALL_START_COUNT),
         )
 
-    def wall_place(self, player_idx: int, cell: Pos, edge: Dir, extends: Dir) -> str:
+    def wall_place(self, player_idx: int, square: Pos, edge: Dir, extends: Dir) -> str:
         """
         Places a 2-width wall, starting from the `edge` edge of cell `cell`, extending to `extends`.
 
@@ -140,32 +138,38 @@ class GameState:
         if not self.players[player_idx].wall_balance:
             return f"player {player_idx} doesn't have any more walls left to place in balance"
 
+        # let's do an early shift to the canonical up/right directions directly
         # note that the `extends` direction still makes sense even after the shift
-        try:
-            cell_can, edge_can = self._wall_canonical_index(cell, edge)
-        except IndexError:
-            return f"invalid move: the cell {cell} cannot have a wall in the `{edge}` edge"
+        square_can, edge_can = square, edge
+        if edge == Dir.DOWN:
+            square_can, edge_can = square + Dir.DOWN.as_pos_delta(), Dir.UP
+        elif edge == Dir.LEFT:
+            square_can, edge_can = square + Dir.LEFT.as_pos_delta(), Dir.RIGHT
+
+        # make sure the placement is in the board
+        if not self._is_position_inbounds(square_can):
+            return "invalid move, attempting to place a wall on the outside of the board"
 
         if edge_can == Dir.UP and extends not in (Dir.LEFT, Dir.RIGHT):
             return "If placing a horizontal edge (top or bottom), the `extends` direction needs to be a horizontal direction since it's a 2-width wall"
         if edge_can == Dir.RIGHT and extends not in (Dir.UP, Dir.DOWN):
             return "If placing a vertical edge (left or right), the `extends` direction needs to be a vertical direction since it's a 2-width wall"
 
-        cell_can_extends = cell_can + extends.as_pos_delta()
-        if not self._is_position_inbounds(cell_can_extends):
+        square_can_extends = square_can + extends.as_pos_delta()
+        if not self._is_position_inbounds(square_can_extends):
             return "the `extends` direction extends to a cell that's out of the board"
 
         # there's no more errors, if it's edge_can == Dir.UP, the row of cell_can_extends is the
         # same as cell_can, so it's a valid row. the equivalent for Dir.RIGHT
 
-        if self._wall_exists(cell_can, edge_can) or self._wall_exists(cell_can_extends, edge_can):
+        if self._wall_exists(square_can, edge_can) or self._wall_exists(square_can_extends, edge_can):
             return "the placement of this wall would overlap with an existing wall"
 
         # the only potential issue left is blocking, so we create a copy of the game state to place
         # the walls and perform the checks
         game_copy = copy.deepcopy(self)
-        game_copy._wall_place_single(cell_can, edge_can)
-        game_copy._wall_place_single(cell_can_extends, edge_can)
+        game_copy._wall_place_single(square_can, edge_can)
+        game_copy._wall_place_single(square_can_extends, edge_can)
         if not game_copy._can_player_reach_goal(0):
             return "the placement of this wall would make it IMPOSSIBLE for player 0 to win"
         if not game_copy._can_player_reach_goal(1):
@@ -173,8 +177,8 @@ class GameState:
 
         # no more checks left, lfg
         self.players[player_idx].wall_balance -= 1
-        self._wall_place_single(cell_can, edge_can)
-        self._wall_place_single(cell_can_extends, edge_can)
+        self._wall_place_single(square_can, edge_can)
+        self._wall_place_single(square_can_extends, edge_can)
         return ""
 
     def move(self, player_idx: int, direction: Dir) -> tuple[bool, str]:
@@ -279,7 +283,7 @@ class GameState:
                 row_str = "    "  # 4 character aligment
                 for col in range(BOARD_SIZE):
                     row_str += "+"
-                    row_str += "---" if self.edges_up(Pos(row, col)) else "   "
+                    row_str += "---" if self.edges.exists(Pos(row, col), Dir.UP) else "   "
                 row_str += "+"
                 save_row(row_str)
 
@@ -288,7 +292,7 @@ class GameState:
             for col in range(BOARD_SIZE):
                 pos = Pos(row, col)
                 cell_row_str += player_map.get(pos, "   ")
-                cell_row_str += " " if col == BOARD_SIZE - 1 or not self.edges_right(pos) else "|"
+                cell_row_str += " " if col == BOARD_SIZE - 1 or not self.edges.exists(pos, Dir.RIGHT) else "|"
             save_row(cell_row_str)
 
         # bottom edge
@@ -304,94 +308,22 @@ class GameState:
         edges = list()
         for i in range(constants.BOARD_SIZE):
             for j in range(constants.BOARD_SIZE):
-                if i < constants.BOARD_SIZE - 1 and self.edges_up(Pos(i, j)):
+                pos = Pos(i, j)
+                if self.edges.exists(pos, Dir.UP):
                     edges.append([(i, j), (i + 1, j)])
-                if j < constants.BOARD_SIZE - 1 and self.edges_right(Pos(i, j)):
+                if self.edges.exists(pos, Dir.RIGHT):
                     edges.append([(i, j), (i, j + 1)])
 
         s = "<No walls were placed yet>"
         if edges:
             s = "\n".join(f"- wall between {e[0]} and {e[1]}" for e in edges)
-
         return s
 
-    def _wall_canonical_index(self, pos: Pos, direction: Dir) -> tuple[Pos, Dir]:
-        # if the direction is not `up` or `right`, we change the reference position `pos`
-        # so that we refer to the same wall, but now with an `up` or `right` direction
-        if direction in (Dir.UP, Dir.RIGHT):
-            pos_canonical, direction_canonical = pos, direction
-        elif direction == Dir.LEFT:
-            pos_canonical, direction_canonical = pos + Dir.LEFT.as_pos_delta(), Dir.RIGHT
-        elif direction == Dir.DOWN:
-            pos_canonical, direction_canonical = pos + Dir.DOWN.as_pos_delta(), Dir.UP
-        else:
-            assert False, "unreachable code"
-
-        # since wall operations always involve this, let's check for invalid access to walls
-        if not self._is_position_inbounds(pos_canonical):
-            raise IndexError("wall operation requires an invalid canonical position")
-        if direction_canonical == Dir.UP and not 0 <= pos_canonical.row < constants.BOARD_SIZE - 1:
-            raise IndexError(f"wall operation on top edge of row index {pos_canonical.row}")
-        elif direction_canonical == Dir.RIGHT and not 0 <= pos_canonical.col < constants.BOARD_SIZE - 1:
-            raise IndexError(f"wall operation on right edge of col index {pos_canonical.col}")
-
-        return pos_canonical, direction_canonical
-
     def _wall_exists(self, pos: Pos, direction: Dir) -> bool:
-        pos, direction = self._wall_canonical_index(pos, direction)
-
-        if direction == Dir.UP:
-            return self.edges_up(pos)
-        if direction == Dir.RIGHT:
-            return self.edges_right(pos)
-
-        assert False, "unreachable code"
+        return self.edges.exists(pos, direction)
 
     def _wall_place_single(self, pos: Pos, direction: Dir) -> None:
-        pos, direction = self._wall_canonical_index(pos, direction)
-
-        if direction == Dir.UP:
-            self.edges_up.set(pos)
-            return
-        if direction == Dir.RIGHT:
-            self.edges_right.set(pos)
-            return
-
-        assert False, "unreachable code"
-
-    def _wall_placement_blocks(self, pos: Pos, direction: Dir) -> bool:
-        """
-        Returns whether a `wall_place(pos, direction)` would completely block the path for either
-        of the players reaching the opposite edge.
-
-        TODO: UNUSED: REMOVE IT AND ADAPT TESTS OF BEHAVIOR TO TEST _can_player_reach_goal directly
-        """
-        pos_canonical, direction_canonical = self._wall_canonical_index(pos, direction)
-
-        # check if wall placement is valid (not on top of another wall)
-        if direction_canonical == Dir.UP and self.edges_up(pos_canonical):
-            return True  # Wall already exists, can't place
-        if direction_canonical == Dir.RIGHT and self.edges_right(pos_canonical):
-            return True  # Wall already exists, can't place
-
-        # let's add the wall and check if it makes it unreachable
-        # NOTE: we do this against a deepcopy of self to avoid a potential error in the middle
-        #       leaving a bad state upon recovery, but it's obviously super expensive to perform
-        #       whenever we want to check if a wall placement would block. if it becomes a problem
-        #       then i need to just do things the right way - scary stuff
-        game_counterfactual = copy.deepcopy(self)
-        if direction_canonical == Dir.UP:
-            game_counterfactual.edges_up.set(pos_canonical)
-        elif direction_canonical == Dir.RIGHT:
-            game_counterfactual.edges_right.set(pos_canonical)
-        else:
-            assert False, "unreachable code"
-
-        if not game_counterfactual._can_player_reach_goal(0):
-            return True
-        if not game_counterfactual._can_player_reach_goal(1):
-            return True
-        return False
+        return self.edges.place(pos, direction)
 
     def _can_player_reach_goal(self, player_idx: int) -> bool:
         """
@@ -416,11 +348,10 @@ class GameState:
         target_row = constants.BOARD_SIZE - 1 if player_idx == 0 else 0
 
         queue = deque([player_pos])
-        visited = {player_pos}
+        already_tracked = {player_pos}
 
         while queue:
             pos = queue.popleft()
-
             if pos.row == target_row:
                 return True
 
@@ -432,20 +363,21 @@ class GameState:
                 if new_pos == enemy_pos:
                     # note that this check is too conservative because while the enemy may block the
                     # path right now, it could sidestep in the future, as mentioned in the docstring
+                    # of the function, but i'm satisfied with this edge case
                     continue
                 if not self._is_position_inbounds(new_pos):
                     continue
-                if new_pos in visited:
+                if new_pos in already_tracked:
                     continue
                 if self._wall_exists(pos, direction):
                     # this check should happen after the is_position_inbounds check
                     continue
 
-                # the new position is a valid move, so we check it
                 queue.append(new_pos)
-                visited.add(new_pos)
+                already_tracked.add(new_pos)
 
-        # nothing else to look at, meaning we couldn't reach the goal
+        # nothing else to look at, meaning we couldn't reach the goal even after searching
+        # every possible path
         return False
 
     def _is_position_inbounds(self, pos: Pos) -> bool:
