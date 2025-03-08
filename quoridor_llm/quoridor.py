@@ -93,7 +93,9 @@ class GameState:
     # stores the player information
     players: tuple[Player, Player]
     # edges_up and edges_right each store, respectively, a boolean flag indicating if the top/right
-    # edge of cell (i, j) has a wall or not, noting that the edges of the board as disregarded
+    # edge of cell (i, j) has a wall or not, noting that the external edges of the board cannot have
+    # edges, so the top-most cells don't own `up` edges, and the right-most cells don't own `right`
+    # edges
     edges_up: Edges
     edges_right: Edges
 
@@ -110,27 +112,35 @@ class GameState:
 
     @classmethod
     def new_game(cls):
+        """Sets up a new clear game board"""
+
         player_start_col = int(constants.BOARD_SIZE / 2)
         return cls(
             edges_up=Edges(constants.BOARD_SIZE - 1, constants.BOARD_SIZE),
             edges_right=Edges(constants.BOARD_SIZE, constants.BOARD_SIZE - 1),
-            # player_a=Player(Pos(0, player_start_col), constants.PLAYER_WALL_START_COUNT),
-            # player_b=Player(Pos(constants.BOARD_SIZE - 1, player_start_col), constants.PLAYER_WALL_START_COUNT),
-            player_a=Player(Pos(3, player_start_col), constants.PLAYER_WALL_START_COUNT),
-            player_b=Player(Pos(5, player_start_col), constants.PLAYER_WALL_START_COUNT),
+            player_a=Player(Pos(0, player_start_col), constants.PLAYER_WALL_START_COUNT),
+            player_b=Player(Pos(constants.BOARD_SIZE - 1, player_start_col), constants.PLAYER_WALL_START_COUNT),
+            # player_a=Player(Pos(3, player_start_col), constants.PLAYER_WALL_START_COUNT),
+            # player_b=Player(Pos(5, player_start_col), constants.PLAYER_WALL_START_COUNT),
         )
 
-    def wall_place(self, cell: Pos, edge: Dir, extends: Dir) -> str:
+    def wall_place(self, player_idx: int, cell: Pos, edge: Dir, extends: Dir) -> str:
         """
         Places a 2-width wall, starting from the `edge` edge of cell `cell`, extending to `extends`.
+
         E.g. wall_place_composite((2, 4), Dir.UP, Dir.RIGHT) places a wall in the top edge of cells
         (2,4) and (2,5).
 
-        This also performs checks to make sure if the moves are valid, and return a string in case
-        of an error.
+        Returns a human-readable message in case of a player error.
+
+        Note that since these are not physical walls, we DO allow for them to cross each other,
+        different from the regular game.
         """
 
-        # note that `extends` still makes sense even after the shift
+        if not self.players[player_idx].wall_balance:
+            return f"player {player_idx} doesn't have any more walls left to place in balance"
+
+        # note that the `extends` direction still makes sense even after the shift
         try:
             cell_can, edge_can = self._wall_canonical_index(cell, edge)
         except IndexError:
@@ -162,11 +172,20 @@ class GameState:
             return "the placement of this wall would make it IMPOSSIBLE for player 1 to win"
 
         # no more checks left, lfg
+        self.players[player_idx].wall_balance -= 1
         self._wall_place_single(cell_can, edge_can)
         self._wall_place_single(cell_can_extends, edge_can)
         return ""
 
     def move(self, player_idx: int, direction: Dir) -> tuple[bool, str]:
+        """
+        Moves a player in a given direction.
+
+        Returns a boolean and a string:
+            - Returns True if the player won.
+            - Returns a non-empty string in case of a player error with a human-readable message.
+        """
+
         player_pos_cur = self.players[player_idx].pos
         player_pos_new = player_pos_cur + direction.as_pos_delta()
 
@@ -197,13 +216,13 @@ class GameState:
         # check for win condition
         # player A wins by reaching the top row (row 8)
         if player_idx == 0 and player_pos_new.row == constants.BOARD_SIZE - 1:
-            return False, ""
+            return True, ""
         # player B wins by reaching the bottom row (row 0)
         elif player_idx == 1 and player_pos_new.row == 0:
-            return False, ""
+            return True, ""
 
         # valid move, no win
-        return True, ""
+        return False, ""
 
     def as_str(self) -> str:
         # we return the board with the following format:

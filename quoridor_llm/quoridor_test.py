@@ -5,8 +5,7 @@ from .quoridor import Dir, GameState, Pos
 
 
 class TestQuoridorGame:
-    def test_game_initialization(self):
-        """Test that a new game is initialized correctly."""
+    def test_new_game(self):
         game = GameState.new_game()
 
         # Check initial player positions
@@ -27,38 +26,36 @@ class TestQuoridorGame:
             for col in range(constants.BOARD_SIZE - 1):
                 assert not game.edges_right(Pos(row, col))
 
-    def test_valid_moves(self):
-        """Test valid player movements."""
+    def test_move(self):
         game = GameState.new_game()
         start_col = game.players[0].pos.col
 
         # Player A moves up 5 times (valid)
         for i in range(5):
-            is_ok, message = game.move(0, Dir.UP)
-            assert is_ok
-            assert message == ""
+            won, err_msg = game.move(0, Dir.UP)
+            assert not won
+            assert not err_msg
             assert game.players[0].pos == Pos(1 + i, start_col)
 
         # Player B moves down (valid)
-        is_ok, message = game.move(1, Dir.DOWN)
-        assert is_ok
-        assert message == ""
+        won, err_msg = game.move(1, Dir.DOWN)
+        assert not won
+        assert not err_msg
         assert game.players[1].pos == Pos(constants.BOARD_SIZE - 2, start_col)
 
         # Player A moves right twice and left thrice (valid)
         for i in range(3):
-            is_ok, message = game.move(0, Dir.RIGHT)
-            assert is_ok
-            assert message == ""
+            won, err_msg = game.move(0, Dir.RIGHT)
+            assert not won
+            assert not err_msg
             assert game.players[0].pos == Pos(5, start_col + i + 1)
         for i in range(3):
-            is_ok, message = game.move(0, Dir.LEFT)
-            assert is_ok
-            assert message == ""
+            won, err_msg = game.move(0, Dir.LEFT)
+            assert not won
+            assert not err_msg
         assert game.players[0].pos == Pos(5, start_col)
 
-    def test_invalid_moves_boundaries(self):
-        """Test invalid moves due to board boundaries."""
+    def test_move_oob(self):
         game = GameState.new_game()
 
         # Move player A to the left edge
@@ -66,9 +63,9 @@ class TestQuoridorGame:
             game.move(0, Dir.LEFT)
 
         # Try to move beyond the left boundary
-        is_ok, message = game.move(0, Dir.LEFT)
-        assert not is_ok
-        assert "boundaries" in message.lower()
+        won, errmsg = game.move(0, Dir.LEFT)
+        assert not won
+        assert "boundaries" in errmsg.lower()
 
         # Reset game
         game = GameState.new_game()
@@ -78,16 +75,15 @@ class TestQuoridorGame:
             game.move(1, Dir.RIGHT)
 
         # Try to move beyond the right boundary
-        is_ok, message = game.move(1, Dir.RIGHT)
-        assert not is_ok
-        assert "boundaries" in message.lower()
+        won, errmsg = game.move(1, Dir.RIGHT)
+        assert not won
+        assert "boundaries" in errmsg.lower()
 
         game = GameState.new_game()
 
         # Move player A below from starting position
 
-    def test_invalid_moves_walls(self):
-        """Test invalid moves due to walls."""
+    def test_move_into_walls(self):
         game = GameState.new_game()
         player = game.players[0]
 
@@ -97,72 +93,70 @@ class TestQuoridorGame:
         game._wall_place_single(player.pos + Dir.LEFT.as_pos_delta(), Dir.LEFT)
 
         # Try to move through the wall above
-        is_ok, message = game.move(0, Dir.UP)
-        assert not is_ok
-        assert "wall" in message.lower()
+        won, errmsg = game.move(0, Dir.UP)
+        assert not won
+        assert "wall" in errmsg.lower()
 
         # Move left twice through a wall
-        is_ok, message = game.move(0, Dir.LEFT)
-        assert is_ok
-        is_ok, message = game.move(0, Dir.LEFT)
-        assert not is_ok
-        assert "wall" in message.lower()
+        won, errmsg = game.move(0, Dir.LEFT)
+        assert not won
+        assert not errmsg
+        won, errmsg = game.move(0, Dir.LEFT)
+        assert not won
+        assert "wall" in errmsg.lower()
 
-    def test_player_collision(self):
+    def test_move_into_player(self):
         """Test that players cannot move to the same position."""
         game = GameState.new_game()
 
         for _ in range(constants.BOARD_SIZE // 2):
-            is_ok, _ = game.move(0, Dir.UP)
-            assert is_ok
+            won, errmsg = game.move(0, Dir.UP)
+            assert not won
+            assert not errmsg
 
         for _ in range(constants.BOARD_SIZE // 2 - 1):
-            is_ok, _ = game.move(1, Dir.DOWN)
-            assert is_ok
+            won, errmsg = game.move(1, Dir.DOWN)
+            assert not won
+            assert not errmsg
 
         assert game.players[0].pos.row == game.players[1].pos.row - 1
 
         # Check the error both ways
-        is_ok, message = game.move(1, Dir.DOWN)
-        assert not is_ok
-        assert "occupied" in message.lower()
+        won, errmsg = game.move(1, Dir.DOWN)
+        assert not won
+        assert "occupied" in errmsg.lower()
 
-        is_ok, message = game.move(0, Dir.UP)
-        assert not is_ok
-        assert "occupied" in message.lower()
+        won, errmsg = game.move(0, Dir.UP)
+        assert not won
+        assert "occupied" in errmsg.lower()
 
-    def test_win_condition(self):
+    def test_move_into_win(self):
         """Test win conditions for both players."""
         game = GameState.new_game()
 
         # Move player A to the top row to win, noting that we need to sidestep the
         # other player first with a single LEFT move
-        is_ok, message = game.move(0, Dir.LEFT)
+        _ = game.move(0, Dir.LEFT)
         for _ in range(constants.BOARD_SIZE - 1):
-            is_ok, message = game.move(0, Dir.UP)
+            won, errmsg = game.move(0, Dir.UP)
             if _ < constants.BOARD_SIZE - 2:
-                assert is_ok
+                assert not won
             else:
-                assert not is_ok
-                assert message == ""  # Empty message for win
+                assert won
 
         # Reset game
         game = GameState.new_game()
 
         # Move player B to the bottom row to win
-        is_ok, message = game.move(1, Dir.RIGHT)
-        assert is_ok
-        assert message == ""
+        _ = game.move(1, Dir.RIGHT)
         for _ in range(constants.BOARD_SIZE - 1):
-            is_ok, message = game.move(1, Dir.DOWN)
+            won, errmsg = game.move(1, Dir.DOWN)
             if _ < constants.BOARD_SIZE - 2:
-                assert is_ok
+                assert not won
             else:
-                assert not is_ok
-                assert message == ""  # Empty message for win
+                assert won
 
-    def test_wall_placement(self):
-        """Test wall placement functionality."""
+    def test_wall_place_single(self):
         game = GameState.new_game()
 
         # Place a wall
@@ -180,7 +174,7 @@ class TestQuoridorGame:
         game._wall_place_single(Pos(constants.BOARD_SIZE - 2, 0), Dir.UP)
         game._wall_place_single(Pos(0, constants.BOARD_SIZE - 2), Dir.RIGHT)
 
-    def test_invalid_wall_indexes_are_caught(self):
+    def test_invalid_wall_indexes_are_caught_across_api(self):
         game = GameState.new_game()
 
         with pytest.raises(IndexError):
@@ -195,122 +189,75 @@ class TestQuoridorGame:
         with pytest.raises(IndexError):
             game._wall_place_single(Pos(0, constants.BOARD_SIZE - 1), Dir.RIGHT)
 
-    def test_wall_placement_check(self):
-        """Test the wall_placement_check function for detecting blocking walls."""
-        game = GameState.new_game()
-        start_col = game.players[0].pos.col
-
-        # Case 1: Wall that doesn't block any player's path
-        # This wall doesn't block either player from reaching their goal
-        assert not game._wall_placement_blocks(Pos(3, 4), Dir.RIGHT)
-
-        # Case 2: Place several walls to create a scenario where a new wall would block a player
-        # Place walls that almost block player A except for one path
-        game._wall_place_single(Pos(2, 1), Dir.UP)
-        game._wall_place_single(Pos(2, 2), Dir.UP)
-        game._wall_place_single(Pos(2, 3), Dir.UP)
-        game._wall_place_single(Pos(2, 4), Dir.UP)
-        game._wall_place_single(Pos(2, 5), Dir.UP)
-        game._wall_place_single(Pos(2, 6), Dir.UP)
-        game._wall_place_single(Pos(2, 7), Dir.UP)
-        game._wall_place_single(Pos(2, 8), Dir.UP)
-
-        # Placing this wall would completely block player A
-        assert game._wall_placement_blocks(Pos(2, 0), Dir.UP)
-
-        # Case 3: Create a narrow corridor between the two players so that they end up
-        #         facing each other without the ability to side-step, effectivelly blocking
-        #         each other's goal.
-        #         NOTE that for the current implementation, this should already be considered a
-        #         block even if it's possible for the opposing player to sidestep it. So for
-        #         explicitness we check for this current behavior, but we may change it so that
-        #         in the future we only block on the full corridor (updating prompts/documentation).
-        game = GameState.new_game()
-
-        # Every row except the last
-        for row in range(constants.BOARD_SIZE - 1):
-            game._wall_place_single(Pos(row, start_col), Dir.LEFT)
-            game._wall_place_single(Pos(row, start_col), Dir.RIGHT)
-
-        last_row = constants.BOARD_SIZE - 1
-
-        # make sure it indeed blocks
-        assert game._wall_placement_blocks(Pos(last_row, start_col), Dir.LEFT)
-
-        # let's make sure it only blocks player 0, not player 1 since player 1 can still
-        # sidestep the issue
-        game._wall_place_single(Pos(last_row, start_col), Dir.LEFT)
-        assert not game._can_player_reach_goal(0)
-        assert game._can_player_reach_goal(1)
-
-        # Case 4: Move the second player down and make a box around him to make sure we're also
-        #         checking if player 1 is blocked and not only player 0
-        game = GameState.new_game()
-        game.move(1, Dir.DOWN)
-        game.move(1, Dir.DOWN)
-        game.move(1, Dir.DOWN)
-
-        player_pos = game.players[1].pos
-        game._wall_place_single(player_pos, Dir.UP)
-        game._wall_place_single(player_pos, Dir.DOWN)
-        game._wall_place_single(player_pos, Dir.LEFT)
-        game._wall_place_single(player_pos, Dir.RIGHT)
-
-        assert game._can_player_reach_goal(0)
-        assert not game._can_player_reach_goal(1)
-
-    def test_wall_place_composite(self):
+    def test_wall_place(self):
         """test the composite wall placement functionality."""
         game = GameState.new_game()
         N = constants.BOARD_SIZE
 
-        result = game.wall_place(Pos(N - 1, 0), Dir.DOWN, Dir.RIGHT)
+        result = game.wall_place(0, Pos(N - 1, 0), Dir.DOWN, Dir.RIGHT)
         assert not result
         assert game._wall_exists(Pos(N - 1, 0), Dir.DOWN)
         assert game._wall_exists(Pos(N - 1, 1), Dir.DOWN)
 
-        result = game.wall_place(Pos(1, 0), Dir.RIGHT, Dir.DOWN)
+        result = game.wall_place(0, Pos(1, 0), Dir.RIGHT, Dir.DOWN)
         assert result == ""
         assert game._wall_exists(Pos(1, 1), Dir.LEFT)
         assert game._wall_exists(Pos(0, 1), Dir.LEFT)
 
-    def test_wall_place_composite_invalid_cell(self):
+    def test_wall_place_balance(self):
+        """test that wall_place does correct wall balance accounting"""
+        game = GameState.new_game()
+
+        for row in range(4):
+            assert not game.wall_place(0, Pos(row, 0), Dir.UP, Dir.RIGHT)
+        assert game.players[0].wall_balance == 6
+
+        for row in range(6):
+            assert not game.wall_place(0, Pos(row, 2), Dir.UP, Dir.RIGHT)
+        assert game.players[0].wall_balance == 0
+
+        assert "balance" in game.wall_place(0, Pos(row, 4), Dir.UP, Dir.RIGHT)
+
+        assert not game.wall_place(1, Pos(0, 6), Dir.UP, Dir.RIGHT)
+        assert game.players[1].wall_balance == 9
+
+    def test_wall_place_invalid_cell(self):
         """Test composite wall placement with invalid cell position."""
         game = GameState.new_game()
 
         # Invalid cell position (outside board boundaries)
-        result = game.wall_place(Pos(-1, 3), Dir.UP, Dir.RIGHT)
+        result = game.wall_place(0, Pos(-1, 3), Dir.UP, Dir.RIGHT)
         assert "invalid move" in result
 
         # Invalid cell position with wall at edge of board
-        result = game.wall_place(Pos(constants.BOARD_SIZE - 1, 3), Dir.UP, Dir.RIGHT)
+        result = game.wall_place(0, Pos(constants.BOARD_SIZE - 1, 3), Dir.UP, Dir.RIGHT)
         assert "invalid move" in result
 
-    def test_wall_place_composite_invalid_direction(self):
+    def test_wall_place_invalid_direction(self):
         """Test composite wall placement with invalid direction combinations."""
         game = GameState.new_game()
 
         # Invalid direction combination for horizontal wall
-        result = game.wall_place(Pos(3, 3), Dir.UP, Dir.UP)
+        result = game.wall_place(0, Pos(3, 3), Dir.UP, Dir.UP)
         assert "horizontal direction" in result
 
         # Invalid direction combination for vertical wall
-        result = game.wall_place(Pos(3, 3), Dir.RIGHT, Dir.LEFT)
+        result = game.wall_place(0, Pos(3, 3), Dir.RIGHT, Dir.LEFT)
         assert "vertical direction" in result
 
-    def test_wall_place_composite_out_of_bounds(self):
+    def test_wall_place_out_of_bounds(self):
         """Test composite wall placement that would extend outside the board."""
         game = GameState.new_game()
 
         # Wall extending outside board horizontally
-        result = game.wall_place(Pos(3, constants.BOARD_SIZE - 1), Dir.UP, Dir.RIGHT)
+        result = game.wall_place(0, Pos(3, constants.BOARD_SIZE - 1), Dir.UP, Dir.RIGHT)
         assert "out of the board" in result or "invalid move" in result
 
         # Wall extending outside board vertically
-        result = game.wall_place(Pos(constants.BOARD_SIZE - 1, 3), Dir.RIGHT, Dir.UP)
+        result = game.wall_place(0, Pos(constants.BOARD_SIZE - 1, 3), Dir.RIGHT, Dir.UP)
         assert "out of the board" in result or "invalid move" in result
 
-    def test_wall_place_composite_overlap(self):
+    def test_wall_place_overlap(self):
         """Test composite wall placement that would overlap with existing walls."""
         game = GameState.new_game()
 
@@ -318,10 +265,10 @@ class TestQuoridorGame:
         game._wall_place_single(Pos(4, 4), Dir.UP)
 
         # Try to place a composite wall that would overlap
-        result = game.wall_place(Pos(4, 3), Dir.UP, Dir.RIGHT)
+        result = game.wall_place(0, Pos(4, 3), Dir.UP, Dir.RIGHT)
         assert "overlap" in result
 
-    def test_wall_place_composite_blocking(self):
+    def test_wall_place_blocking(self):
         """Test composite wall placement that would block a player from reaching their goal."""
         game = GameState.new_game()
 
@@ -349,10 +296,51 @@ class TestQuoridorGame:
         # and make a final placement on (0,7)/UP/RIGHT that should block
 
         assert constants.BOARD_SIZE == 9, "this test is hardcoded on the board size"
-        assert not game.wall_place(Pos(2, 0), Dir.UP, Dir.RIGHT)
-        assert not game.wall_place(Pos(2, 2), Dir.UP, Dir.RIGHT)
-        assert not game.wall_place(Pos(2, 4), Dir.UP, Dir.RIGHT)
-        assert not game.wall_place(Pos(2, 6), Dir.UP, Dir.RIGHT)
-        assert not game.wall_place(Pos(2, 7), Dir.RIGHT, Dir.DOWN)
+        assert not game.wall_place(0, Pos(2, 0), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place(0, Pos(2, 2), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place(0, Pos(2, 4), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place(0, Pos(2, 6), Dir.UP, Dir.RIGHT)
+        assert not game.wall_place(0, Pos(2, 7), Dir.RIGHT, Dir.DOWN)
 
-        assert "IMPOSSIBLE" in game.wall_place(Pos(0, 7), Dir.UP, Dir.RIGHT)
+        assert "IMPOSSIBLE" in game.wall_place(0, Pos(0, 7), Dir.UP, Dir.RIGHT)
+
+    def test_wall_place_blocking_extra(self):
+        """
+        Make sure that wall_place returns an error if a placement would fully block a player.
+        """
+
+        # Case 1: Simple horizontal block
+        game = GameState.new_game()
+
+        blocked_row = 2
+        for col in range(constants.BOARD_SIZE - 2):
+            game._wall_place_single(Pos(blocked_row, col), Dir.UP)
+
+        assert game._can_player_reach_goal(0)
+        assert game._can_player_reach_goal(1)
+        assert "IMPOSSIBLE" in game.wall_place(0, Pos(blocked_row, col + 1), Dir.UP, Dir.RIGHT)
+
+        # Case 2: Narrow corridor. For the current implementation, this should be considered a block
+        #         even if it's possible for Player 1 to sidestep the issue.
+        game = GameState.new_game()
+        start_col = game.players[0].pos.col
+
+        for row in range(constants.BOARD_SIZE - 2):
+            game._wall_place_single(Pos(row, start_col), Dir.LEFT)
+            game._wall_place_single(Pos(row, start_col), Dir.RIGHT)
+
+        assert game._can_player_reach_goal(0)
+        assert game._can_player_reach_goal(1)
+        # Fully block the left
+        assert not game.wall_place(0, Pos(row + 1, start_col), Dir.LEFT, Dir.UP)
+        # Now fully block the right as well
+        assert "IMPOSSIBLE" in game.wall_place(0, Pos(row + 1, start_col), Dir.RIGHT, Dir.UP)
+
+        # Case 3: Only block player 1, surrounding them with walls
+        game = GameState.new_game()
+        game.move(1, Dir.DOWN)
+        p1_pos = game.players[1].pos
+        assert not game.wall_place(0, p1_pos, Dir.UP, Dir.LEFT)
+        assert not game.wall_place(0, p1_pos, Dir.LEFT, Dir.DOWN)
+        assert not game.wall_place(0, p1_pos, Dir.DOWN, Dir.RIGHT)
+        assert "IMPOSSIBLE" in game.wall_place(0, p1_pos, Dir.RIGHT, Dir.UP)
