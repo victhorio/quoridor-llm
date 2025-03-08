@@ -1,5 +1,3 @@
-import pytest
-
 from . import constants
 from .quoridor import Dir, GameState, Pos
 
