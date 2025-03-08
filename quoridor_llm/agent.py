@@ -1,5 +1,6 @@
 import json
 import re
+from typing import Any
 
 from . import aiutils, constants, quoridor
 
@@ -60,8 +61,12 @@ async def play_turn(
     game: quoridor.GameState,
     player_idx: int,
     turn: int,
-    history: list[str] | None = None,
+    history: list[Any] | None = None,
 ) -> bool:
+    if history and len(history) > 10:
+        # The agent is error too much, this is not expected.
+        raise RuntimeError(f"player {player_idx} is erroring too much, stopping to avoid harmful loops")
+
     messages = (
         [
             system_instructions,
@@ -116,7 +121,6 @@ async def play_turn(
 
     if err_msg:
         print(f"Error: {err_msg}")
-        input("<Press enter for the agent to retry>")
         err_msg = f"Tool error:\n{err_msg}\n\nPlan again your next move given this information, and then I will prompt for an updated move."
         messages.extend(
             [
