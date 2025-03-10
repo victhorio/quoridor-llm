@@ -16,7 +16,7 @@ async def main():
 
             # this mutates the game and player_plans
             won = await agent.play_turn(
-                model="gpt-4o-mini" if player_idx == 0 else "o3-mini",
+                model="openai/o3-mini-high" if player_idx == 0 else "anthropic/claude-3.7-sonnet:thinking",
                 client=client,
                 player_plans=player_plans,
                 system_instructions=system_instructions,
